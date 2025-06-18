@@ -72,3 +72,17 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# macOS 시스템 파일 무시
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS 썸네일 캐시
+._*
+
+# Spotlight 검색 파일
+.Spotlight-V100
+
+# Trash 폴더
+.Trashes
