@@ -49,7 +49,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            wormManager.LoadCurrentWorm(saveData.wormList[^1]); // 가장 마지막 웜 로드
+            WormManager.LoadCurrentWorm(saveData.wormList[^1]); // 가장 마지막 웜 로드
         }
 
         UpdateCurrentWormNameUI();
