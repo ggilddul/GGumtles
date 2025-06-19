@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9e3aa7a967524d95a59c614d5bf3bf7, type: 3}
+  m_Name: Ach_02
+  m_EditorClassIdentifier: 
+  id: Ach_02
+  title: "\uB3C4\uD1A0\uB9AC \uBD80\uC790"
+  description: "\uB3C4\uD1A0\uB9AC\uB97C 5\uAC1C\uB97C \uBAA8\uC544\uBCF4\uC138\uC694! "
+  icon: {fileID: 21300000, guid: aedd1f21d7a754a86b17c94867c99b7e, type: 3}
