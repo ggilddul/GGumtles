@@ -21,7 +21,7 @@ public class WormManager : MonoBehaviour
         "별똥별", "구름", "사탕", "바람", "도토리"
     };
 
-    private List<WormData> wormList = new List<WormData>();
+    private List<WormData> wormList = new();
     private WormData currentWorm;
     public WormFamilyManager wormFamilyManager;
 

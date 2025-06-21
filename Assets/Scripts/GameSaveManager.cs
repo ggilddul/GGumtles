@@ -96,6 +96,8 @@ public class GameSaveManager : MonoBehaviour
         currentSaveData.ownedItems = new List<ItemData>();
         currentSaveData.selectedMapIndex = 0;
 
+
+        // unlockedAchievements 리스트의 원소를 0으로 초기화
         int achievementCount = AchievementManager.Instance?.Count ?? 0;
         currentSaveData.unlockedAchievements = new List<int>();
         for (int i = 0; i < achievementCount; i++)
@@ -105,12 +107,9 @@ public class GameSaveManager : MonoBehaviour
         currentSaveData.bgmOption = 2;
 
         // 아이템 추가 (초기 아이템 보장)
-        ItemManager.Instance.AddItem("100");
-        ItemManager.Instance.EquipItem("100");
-        ItemManager.Instance.AddItem("200");
-        ItemManager.Instance.EquipItem("100");
-        ItemManager.Instance.AddItem("300");
-        ItemManager.Instance.EquipItem("100");
+        ItemManager.Instance.AddAndEquipItem("100");
+        ItemManager.Instance.AddAndEquipItem("200");
+        ItemManager.Instance.AddAndEquipItem("300");
 
         SaveGame();
     }

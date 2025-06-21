@@ -43,7 +43,7 @@ public class GameManager : MonoBehaviour
         acornCount = saveData.acornCount;
         diamondCount = saveData.diamondCount;
 
-        if (saveData.wormList == null || saveData.wormList.Count == 0)
+        if (saveData.wormList.Count == 0)
         {
             WormManager.Instance?.CreateNewWorm(1);
         }
