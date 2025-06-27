@@ -30,11 +30,11 @@ public class AchievementManager : MonoBehaviour
         achievementStates.Clear();
         foreach (var def in achievementDefinitions)
         {
-            if (!achievementStates.ContainsKey(def.id))
+            if (!achievementStates.ContainsKey(def.ach_id))
             {
-                achievementStates.Add(def.id, new AchievementStatus
+                achievementStates.Add(def.ach_id, new AchievementStatus
                 {
-                    id = def.id,
+                    ach_id = def.ach_id,
                     isUnlocked = false
                 });
             }
@@ -50,37 +50,37 @@ public class AchievementManager : MonoBehaviour
         {
             foreach (var saved in savedStatuses)
             {
-                if (achievementStates.ContainsKey(saved.id))
+                if (achievementStates.ContainsKey(saved.ach_id))
                 {
-                    achievementStates[saved.id].isUnlocked = saved.isUnlocked;
+                    achievementStates[saved.ach_id].isUnlocked = saved.isUnlocked;
                 }
             }
         }
     }
 
     // 업적 달성
-    public void CheckAchievement(string id)
+    public void CheckAchievement(string ach_id)
     {
-        if (!achievementStates.ContainsKey(id)) return;
+        if (!achievementStates.ContainsKey(ach_id)) return;
 
-        var status = achievementStates[id];
+        var status = achievementStates[ach_id];
         if (!status.isUnlocked)
         {
             status.isUnlocked = true;
-            int index = achievementDefinitions.FindIndex(a => a.id == id);
+            int index = achievementDefinitions.FindIndex(a => a.ach_id == ach_id);
             if (index >= 0)
                 PopupManager.Instance?.ShowAchievementPopup(index);
             GameSaveManager.Instance.SaveGame();
         }
     }
 
-    public AchievementStatus GetStatusById(string id)
+    public AchievementStatus GetStatusById(string ach_id)
     {
         if (achievementStates == null)
             return null;
 
         // Find 대신 TryGetValue 사용
-        if (achievementStates.TryGetValue(id, out var status))
+        if (achievementStates.TryGetValue(ach_id, out var status))
             return status;
 
         return null;
@@ -90,9 +90,9 @@ public class AchievementManager : MonoBehaviour
 
     public List<AchievementStatus> GetAllStatuses() => achievementStates.Values.ToList();
 
-    public bool IsUnlocked(string id)
+    public bool IsUnlocked(string ach_id)
     {
-        return achievementStates.TryGetValue(id, out var status) && status.isUnlocked;
+        return achievementStates.TryGetValue(ach_id, out var status) && status.isUnlocked;
     }
 
     public List<string> GetUnlockedIds()

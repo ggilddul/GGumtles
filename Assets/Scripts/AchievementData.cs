@@ -16,6 +16,6 @@ public class AchievementData : ScriptableObject
 [System.Serializable]
 public class AchievementStatus
 {
-    public string id;
+    public string ach_id;
     public bool isUnlocked;
 }

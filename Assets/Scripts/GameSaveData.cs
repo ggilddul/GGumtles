@@ -22,8 +22,8 @@ public class GameSaveData
     public int acornCount;
     public int diamondCount;
     public List<WormData> wormList = new();
-    public List<ItemData> ownedItemsList = new();
-    public List<AchievementData> unlockedAchList = new();
+    public List<string> ownedItemIds = new();
+    public List<string> unlockedAchIds = new();
     public int selectedMapIndex;
     public int sfxOption = 2;
     public int bgmOption = 2;

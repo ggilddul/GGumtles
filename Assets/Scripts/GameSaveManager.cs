@@ -28,7 +28,7 @@ public class GameSaveManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 외부에서 호출하는 저장 데이터 초기화 함수
+    /// 저장 데이터 초기화 및 로드
     /// </summary>
     public void Initialize()
     {
@@ -37,9 +37,8 @@ public class GameSaveManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 저장된 게임 데이터를 불러오거나, 새로 생성
+    /// 저장 데이터 로드 또는 신규 생성
     /// </summary>
-   
     private void LoadGame()
     {
         if (File.Exists(saveFilePath))
@@ -55,58 +54,48 @@ public class GameSaveManager : MonoBehaviour
             InitializeNewSaveData();
         }
 
-        // 업적 초기화 - 여기서 변환 후 전달
-        if (AchievementManager.Instance != null && currentSaveData.unlockedAchievements != null)
+        // 업적 상태 초기화
+        if (AchievementManager.Instance != null && currentSaveData.unlockedAchIds != null)
         {
             List<AchievementStatus> statusList = new List<AchievementStatus>();
-
             var definitions = AchievementManager.Instance.GetAllDefinitions();
-            for (int i = 0; i < definitions.Count; i++)
-            {
-                bool unlocked = false;
-                if (i < currentSaveData.unlockedAchievements.Count)
-                    unlocked = currentSaveData.unlockedAchievements[i] != 0; // 0이면 잠김, 1이면 해금
 
+            foreach (var def in definitions)
+            {
+                bool unlocked = currentSaveData.unlockedAchIds.Contains(def.ach_id);
                 statusList.Add(new AchievementStatus
                 {
-                    id = definitions[i].id,
+                    ach_id = def.ach_id,
                     isUnlocked = unlocked
                 });
             }
-
             AchievementManager.Instance.Initialize(statusList);
         }
         else
         {
-            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 없거나 unlockedAchievements가 null입니다.");
+            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 없거나 unlockedAchIds가 null입니다.");
         }
     }
 
-
     /// <summary>
-    /// 신규 저장 데이터에 기본값 세팅
+    /// 신규 저장 데이터 기본값 설정
     /// </summary>
-
     private void InitializeNewSaveData()
     {
         currentSaveData.totalPlayTime = 0f;
         currentSaveData.acornCount = 0;
         currentSaveData.diamondCount = 0;
         currentSaveData.wormList = new List<WormData>();
-        currentSaveData.ownedItems = new List<ItemData>();
+        currentSaveData.ownedItemIds = new List<string>();
         currentSaveData.selectedMapIndex = 0;
 
-
-        // unlockedAchievements 리스트의 원소를 0으로 초기화
-        int achievementCount = AchievementManager.Instance?.Count ?? 0;
-        currentSaveData.unlockedAchievements = new List<int>();
-        for (int i = 0; i < achievementCount; i++)
-            currentSaveData.unlockedAchievements.Add(0);
+        // 업적 아이디 리스트 초기화 (빈 리스트)
+        currentSaveData.unlockedAchIds = new List<string>();
 
         currentSaveData.sfxOption = 2;
         currentSaveData.bgmOption = 2;
 
-        // 아이템 추가 (초기 아이템 보장)
+        // 초기 아이템 추가
         ItemManager.Instance.AddAndEquipItem("100");
         ItemManager.Instance.AddAndEquipItem("200");
         ItemManager.Instance.AddAndEquipItem("300");
@@ -115,10 +104,8 @@ public class GameSaveManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 현재 데이터를 파일로 저장
+    /// 현재 저장 데이터를 파일로 저장
     /// </summary>
-
-
     public void SaveGame()
     {
         if (currentSaveData == null)
@@ -130,7 +117,7 @@ public class GameSaveManager : MonoBehaviour
         // 업적 상태 갱신
         if (AchievementManager.Instance != null)
         {
-            currentSaveData.unlockedAchievements = GetUnlockedAchievementIndexes();
+            currentSaveData.unlockedAchIds = GetUnlockedAchIds();
         }
 
         string json = JsonUtility.ToJson(currentSaveData, true);
@@ -146,30 +133,28 @@ public class GameSaveManager : MonoBehaviour
         }
     }
 
-
-
-    public List<int> GetUnlockedAchievementIndexes()
-{
-    List<int> unlockedIndexes = new List<int>();
-
-    if (AchievementManager.Instance == null)
+    /// <summary>
+    /// 현재 해금된 업적 ID 리스트 반환
+    /// </summary>
+    public List<string> GetUnlockedAchIds()
     {
-        Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 null입니다.");
-        return unlockedIndexes;
-    }
+        List<string> unlockedIds = new List<string>();
 
-    var definitions = AchievementManager.Instance.GetAllDefinitions();
-
-    for (int i = 0; i < definitions.Count; i++)
-    {
-        string id = definitions[i].id;
-        if (AchievementManager.Instance.IsUnlocked(id))
+        if (AchievementManager.Instance == null)
         {
-            unlockedIndexes.Add(i);
+            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 null입니다.");
+            return unlockedIds;
         }
+
+        var definitions = AchievementManager.Instance.GetAllDefinitions();
+        foreach (var def in definitions)
+        {
+            if (AchievementManager.Instance.IsUnlocked(def.ach_id))
+            {
+                unlockedIds.Add(def.ach_id);
+            }
+        }
+
+        return unlockedIds;
     }
-
-    return unlockedIndexes;
-}
-
 }
