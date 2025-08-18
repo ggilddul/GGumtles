@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System;
 using UnityEngine;
+using System.Collections;
 
 public class GameSaveManager : MonoBehaviour
 {
@@ -9,6 +10,8 @@ public class GameSaveManager : MonoBehaviour
 
     public GameSaveData currentSaveData;
     private string saveFilePath;
+    private string backupFilePath;
+    private const int MAX_BACKUP_COUNT = 3;
 
     public delegate void OnGameSaveDataLoaded();
     public event OnGameSaveDataLoaded OnGameSaveDataLoadedEvent;
@@ -20,6 +23,7 @@ public class GameSaveManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             saveFilePath = Path.Combine(Application.persistentDataPath, "gamesave.json");
+            backupFilePath = Path.Combine(Application.persistentDataPath, "gamesave_backup.json");
         }
         else
         {
@@ -41,20 +45,105 @@ public class GameSaveManager : MonoBehaviour
     /// </summary>
     private void LoadGame()
     {
-        if (File.Exists(saveFilePath))
+        try
         {
-            string json = File.ReadAllText(saveFilePath);
-            currentSaveData = JsonUtility.FromJson<GameSaveData>(json);
-            Debug.Log("[GameSaveManager] 기존 저장 데이터 로드 완료");
+            if (File.Exists(saveFilePath))
+            {
+                string json = File.ReadAllText(saveFilePath);
+                currentSaveData = JsonUtility.FromJson<GameSaveData>(json);
+                
+                // 데이터 검증
+                if (ValidateSaveData(currentSaveData))
+                {
+                    Debug.Log("[GameSaveManager] 기존 저장 데이터 로드 완료");
+                }
+                else
+                {
+                    Debug.LogWarning("[GameSaveManager] 저장 데이터 검증 실패. 백업에서 복원 시도");
+                    if (!TryLoadFromBackup())
+                    {
+                        CreateNewSaveData();
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("[GameSaveManager] 저장 데이터 없음. 새로 생성합니다.");
+                CreateNewSaveData();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Debug.Log("[GameSaveManager] 저장 데이터 없음. 새로 생성합니다.");
-            currentSaveData = new GameSaveData();
-            InitializeNewSaveData();
+            Debug.LogError($"[GameSaveManager] 로드 중 오류: {ex.Message}");
+            if (!TryLoadFromBackup())
+            {
+                CreateNewSaveData();
+            }
         }
 
-        // 업적 상태 초기화
+        InitializeAchievementSystem();
+    }
+
+    /// <summary>
+    /// 저장 데이터 유효성 검사
+    /// </summary>
+    private bool ValidateSaveData(GameSaveData data)
+    {
+        if (data == null) return false;
+        
+        // 기본 데이터 검증
+        if (data.acornCount < 0 || data.diamondCount < 0) return false;
+        if (data.selectedMapIndex < 0) return false;
+        if (!System.Enum.IsDefined(typeof(GameSaveData.AudioOption), data.sfxOption)) return false;
+        if (!System.Enum.IsDefined(typeof(GameSaveData.AudioOption), data.bgmOption)) return false;
+        
+        // 리스트 null 체크
+        if (data.wormList == null || data.ownedItemIds == null || data.unlockedAchIds == null) return false;
+        
+        return true;
+    }
+
+    /// <summary>
+    /// 백업에서 데이터 복원 시도
+    /// </summary>
+    private bool TryLoadFromBackup()
+    {
+        try
+        {
+            if (File.Exists(backupFilePath))
+            {
+                string json = File.ReadAllText(backupFilePath);
+                currentSaveData = JsonUtility.FromJson<GameSaveData>(json);
+                
+                if (ValidateSaveData(currentSaveData))
+                {
+                    Debug.Log("[GameSaveManager] 백업에서 데이터 복원 성공");
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[GameSaveManager] 백업 복원 실패: {ex.Message}");
+        }
+        
+        return false;
+    }
+
+    /// <summary>
+    /// 새로운 저장 데이터 생성
+    /// </summary>
+    private void CreateNewSaveData()
+    {
+        currentSaveData = new GameSaveData();
+        InitializeNewSaveData();
+    }
+
+    /// <summary>
+    /// 업적 시스템 초기화
+    /// </summary>
+    private void InitializeAchievementSystem()
+    {
         if (AchievementManager.Instance != null && currentSaveData.unlockedAchIds != null)
         {
             List<AchievementStatus> statusList = new List<AchievementStatus>();
@@ -92,13 +181,16 @@ public class GameSaveManager : MonoBehaviour
         // 업적 아이디 리스트 초기화 (빈 리스트)
         currentSaveData.unlockedAchIds = new List<string>();
 
-        currentSaveData.sfxOption = 2;
-        currentSaveData.bgmOption = 2;
+        currentSaveData.sfxOption = GameSaveData.AudioOption.High;
+        currentSaveData.bgmOption = GameSaveData.AudioOption.High;
 
         // 초기 아이템 추가
-        ItemManager.Instance.AddAndEquipItem("100");
-        ItemManager.Instance.AddAndEquipItem("200");
-        ItemManager.Instance.AddAndEquipItem("300");
+        if (ItemManager.Instance != null)
+        {
+            ItemManager.Instance.AddItem("100", 1, false);
+            ItemManager.Instance.AddItem("200", 1, false);
+            ItemManager.Instance.AddItem("300", 1, false);
+        }
 
         SaveGame();
     }
@@ -120,16 +212,46 @@ public class GameSaveManager : MonoBehaviour
             currentSaveData.unlockedAchIds = GetUnlockedAchIds();
         }
 
-        string json = JsonUtility.ToJson(currentSaveData, true);
+        StartCoroutine(SaveGameAsync());
+    }
+
+    /// <summary>
+    /// 비동기 저장 처리
+    /// </summary>
+    private IEnumerator SaveGameAsync()
+    {
+        yield return new WaitForEndOfFrame(); // UI 블로킹 방지
 
         try
         {
+            // 백업 생성
+            if (File.Exists(saveFilePath))
+            {
+                File.Copy(saveFilePath, backupFilePath, true);
+            }
+
+            string json = JsonUtility.ToJson(currentSaveData, true);
             File.WriteAllText(saveFilePath, json);
+            
             Debug.Log("[GameSaveManager] 저장 완료");
         }
         catch (Exception ex)
         {
-            Debug.LogError("[GameSaveManager] 저장 중 오류: " + ex.Message);
+            Debug.LogError($"[GameSaveManager] 저장 중 오류: {ex.Message}");
+            
+            // 백업에서 복원 시도
+            if (File.Exists(backupFilePath))
+            {
+                try
+                {
+                    File.Copy(backupFilePath, saveFilePath, true);
+                    Debug.Log("[GameSaveManager] 백업에서 복원 완료");
+                }
+                catch (Exception restoreEx)
+                {
+                    Debug.LogError($"[GameSaveManager] 백업 복원 실패: {restoreEx.Message}");
+                }
+            }
         }
     }
 
@@ -156,5 +278,26 @@ public class GameSaveManager : MonoBehaviour
         }
 
         return unlockedIds;
+    }
+
+    /// <summary>
+    /// 저장 데이터 백업 생성
+    /// </summary>
+    public void CreateBackup()
+    {
+        try
+        {
+            if (File.Exists(saveFilePath))
+            {
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string backupPath = Path.Combine(Application.persistentDataPath, $"gamesave_backup_{timestamp}.json");
+                File.Copy(saveFilePath, backupPath, true);
+                Debug.Log($"[GameSaveManager] 백업 생성 완료: {backupPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[GameSaveManager] 백업 생성 실패: {ex.Message}");
+        }
     }
 }

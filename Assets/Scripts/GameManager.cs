@@ -5,8 +5,19 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    // 상수 정의
+    private const float DEFAULT_TIME_SCALE = 60f;
+    private const float SECONDS_IN_DAY = 86400f;
+    private const float LOADING_END_DELAY = 2f;
+    private const int DAYTIME_START = 7;
+    private const int DAYTIME_END = 17;
+    private const int SUNSET_START_MORNING = 5;
+    private const int SUNSET_END_MORNING = 7;
+    private const int SUNSET_START_EVENING = 17;
+    private const int SUNSET_END_EVENING = 19;
+
     [Header("Game Time")]
-    public float timeScale = 60f; // 현실 시간의 60배속
+    public float timeScale = DEFAULT_TIME_SCALE;
     public float gameTime;
 
     private int hour;
@@ -14,6 +25,7 @@ public class GameManager : MonoBehaviour
     private int minute;
     private string AMPM;
     private int lastMinute = -1;
+    private bool isGameInitialized = false;
 
     [Header("Resources")]
     public int acornCount;
@@ -22,7 +34,19 @@ public class GameManager : MonoBehaviour
     [Header("References")]
     public MapManager mapManager;
 
+    // 이벤트 정의
+    public delegate void OnGameTimeChanged(int hour, int minute, string ampm);
+    public event OnGameTimeChanged OnGameTimeChangedEvent;
+
+    public delegate void OnResourceChanged(int acornCount, int diamondCount);
+    public event OnResourceChanged OnResourceChangedEvent;
+
     private void Awake()
+    {
+        InitializeSingleton();
+    }
+
+    private void InitializeSingleton()
     {
         if (Instance == null)
         {
@@ -37,38 +61,94 @@ public class GameManager : MonoBehaviour
 
     public void Initialize()
     {
-        var saveData = GameSaveManager.Instance.currentSaveData;
+        try
+        {
+            LoadGameData();
+            InitializeWormSystem();
+            InitializeUI();
+            ScheduleLoadingEnd();
+            
+            isGameInitialized = true;
+            Debug.Log("[GameManager] 게임 초기화 완료");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[GameManager] 초기화 중 오류: {ex.Message}");
+        }
+    }
 
+    private void LoadGameData()
+    {
+        if (GameSaveManager.Instance?.currentSaveData == null)
+        {
+            Debug.LogError("[GameManager] 세이브 데이터를 로드할 수 없습니다.");
+            return;
+        }
+
+        var saveData = GameSaveManager.Instance.currentSaveData;
+        
         gameTime = saveData.totalPlayTime;
         acornCount = saveData.acornCount;
         diamondCount = saveData.diamondCount;
 
+        Debug.Log($"[GameManager] 게임 데이터 로드 완료 - 도토리: {acornCount}, 다이아몬드: {diamondCount}");
+    }
+
+    private void InitializeWormSystem()
+    {
+        if (WormManager.Instance == null)
+        {
+            Debug.LogWarning("[GameManager] WormManager가 없습니다.");
+            return;
+        }
+
+        var saveData = GameSaveManager.Instance.currentSaveData;
+        
         if (saveData.wormList.Count == 0)
         {
-            WormManager.Instance?.CreateNewWorm(1);
+            WormManager.Instance.CreateNewWorm(1);
+            Debug.Log("[GameManager] 새로운 벌레 생성");
         }
         else
         {
-            WormManager.Instance?.GetCurrentWorm(); // 현재 웜 로드
+            WormManager.Instance.GetCurrentWorm();
+            Debug.Log("[GameManager] 기존 벌레 로드");
+        }
+    }
+
+    private void InitializeUI()
+    {
+        UpdateCurrentWormNameUI();
+        
+        if (mapManager != null)
+        {
+            var saveData = GameSaveManager.Instance.currentSaveData;
+            mapManager.ChangeMapByIndex(saveData.selectedMapIndex);
         }
 
-        UpdateCurrentWormNameUI();
-        mapManager.SetMapIndex(saveData.selectedMapIndex);
         ItemTabUI.Instance?.RefreshAllPreviews();
         TabManager.Instance?.OpenTab(2);
+    }
 
-        // 로딩 종료 2초 뒤 실행
-        Invoke(nameof(EndLoading), 2f);
+    private void ScheduleLoadingEnd()
+    {
+        Invoke(nameof(EndLoading), LOADING_END_DELAY);
     }
 
     private void EndLoading()
     {
-        LoadingManager.Instance.HideLoading(LoadingManager.LoadingType.Logo);
+        if (LoadingManager.Instance != null)
+        {
+            LoadingManager.Instance.HideLoading(LoadingManager.LoadingType.Logo);
+        }
     }
 
     private void Update()
     {
-        UpdateGameTime();
+        if (isGameInitialized)
+        {
+            UpdateGameTime();
+        }
     }
 
     public void UseAcorn()
@@ -76,26 +156,34 @@ public class GameManager : MonoBehaviour
         if (acornCount > 0)
         {
             acornCount--;
+            OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+            Debug.Log($"[GameManager] 도토리 사용 - 남은 개수: {acornCount}");
         }
         else
         {
             PopupManager.Instance?.OpenPopup(18);
+            Debug.LogWarning("[GameManager] 도토리가 부족합니다.");
         }
     }
 
     public void PickAcorn()
     {
         acornCount++;
+        OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+        Debug.Log($"[GameManager] 도토리 획득 - 총 개수: {acornCount}");
     }
 
     public void PickDiamond()
     {
         diamondCount++;
+        OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+        Debug.Log($"[GameManager] 다이아몬드 획득 - 총 개수: {diamondCount}");
     }
 
     public void EarnItem(int index)
     {
         // 아이템 획득 처리 (추후 구현)
+        Debug.Log($"[GameManager] 아이템 획득 - 인덱스: {index}");
     }
 
     private void UpdateGameTime()
@@ -103,13 +191,21 @@ public class GameManager : MonoBehaviour
         float deltaGameTime = Time.deltaTime * timeScale;
         gameTime += deltaGameTime;
 
-        float secondsInDay = 86400f;
-        float currentSeconds = gameTime % secondsInDay;
-
+        float currentSeconds = gameTime % SECONDS_IN_DAY;
         hour24 = (int)(currentSeconds / 3600) % 24;
         minute = (int)((currentSeconds % 3600) / 60);
 
-        // AM/PM 및 12시간제 변환
+        ConvertTo12HourFormat();
+
+        if (minute != lastMinute)
+        {
+            lastMinute = minute;
+            OnMinuteChanged();
+        }
+    }
+
+    private void ConvertTo12HourFormat()
+    {
         if (hour24 == 0)
         {
             hour = 12;
@@ -130,38 +226,40 @@ public class GameManager : MonoBehaviour
             hour = hour24 - 12;
             AMPM = "PM";
         }
+    }
 
-        if (minute != lastMinute)
-        {
-            lastMinute = minute;
+    private void OnMinuteChanged()
+    {
+        UpdateTimeUI();
+        UpdateMapBackground();
+        UpdateWormAge();
+        
+        OnGameTimeChangedEvent?.Invoke(hour, minute, AMPM);
+        
+        Debug.Log($"[GameTime] {hour}:{minute:D2} {AMPM}");
+    }
 
-            TopBarManager.Instance?.UpdateTime(hour, minute, AMPM);
-            UpdateMapBackground();
-
-            WormData currentWorm = WormManager.Instance.GetCurrentWorm();
-            if (currentWorm != null)
-            {
-                currentWorm.age += 1;
-                WormManager.Instance.EvolveCurrentWorm();
-            }
-
-            Debug.Log($"[GameTime] minute={minute}, age={currentWorm?.age}, stage={currentWorm?.lifeStage}");
-        }
+    private void UpdateTimeUI()
+    {
+        TopBarManager.Instance?.UpdateTime(hour, minute, AMPM);
     }
 
     private void UpdateMapBackground()
     {
-        SpriteManager.MapPhase phase;
-        if (IsDaytime(hour24))
-            phase = SpriteManager.MapPhase.Day;
-        else if (IsSunset(hour24))
-            phase = SpriteManager.MapPhase.Sunset;
-        else
-            phase = SpriteManager.MapPhase.Night;
+        if (mapManager == null) return;
 
-        SpriteManager.MapType mapType = mapManager.GetCurrentMapType();
-        Sprite mapSprite = SpriteManager.Instance.GetMapSprite(mapType, phase);
-        mapManager?.UpdateMapBackground(mapSprite);
+        // 맵 배경 업데이트는 MapManager에서 자체적으로 처리
+        mapManager.UpdateMapBackground();
+    }
+
+    private SpriteManager.MapPhase GetCurrentMapPhase()
+    {
+        if (IsDaytime(hour24))
+            return SpriteManager.MapPhase.Day;
+        else if (IsSunset(hour24))
+            return SpriteManager.MapPhase.Sunset;
+        else
+            return SpriteManager.MapPhase.Night;
     }
 
     public void ForceUpdateMapBackground()
@@ -169,18 +267,34 @@ public class GameManager : MonoBehaviour
         UpdateMapBackground();
     }
 
+    private void UpdateWormAge()
+    {
+        if (WormManager.Instance == null) return;
+
+        WormData currentWorm = WormManager.Instance.GetCurrentWorm();
+        if (currentWorm != null)
+        {
+            currentWorm.age += 1;
+            WormManager.Instance.CheckEvolution();
+            Debug.Log($"[GameManager] 벌레 나이 증가 - 나이: {currentWorm.age}, 단계: {currentWorm.lifeStage}");
+        }
+    }
+
     private bool IsDaytime(int hour)
     {
-        return hour >= 7 && hour < 17;
+        return hour >= DAYTIME_START && hour < DAYTIME_END;
     }
 
     private bool IsSunset(int hour)
     {
-        return (hour >= 5 && hour < 7) || (hour >= 17 && hour < 19);
+        return (hour >= SUNSET_START_MORNING && hour < SUNSET_END_MORNING) || 
+               (hour >= SUNSET_START_EVENING && hour < SUNSET_END_EVENING);
     }
 
     private void UpdateCurrentWormNameUI()
     {
+        if (WormManager.Instance == null) return;
+
         WormData currentWorm = WormManager.Instance.GetCurrentWorm();
         if (currentWorm != null)
         {
@@ -188,8 +302,50 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void SaveGameData()
+    {
+        if (GameSaveManager.Instance?.currentSaveData == null) return;
+
+        var saveData = GameSaveManager.Instance.currentSaveData;
+        saveData.totalPlayTime = gameTime;
+        saveData.acornCount = acornCount;
+        saveData.diamondCount = diamondCount;
+
+        GameSaveManager.Instance.SaveGame();
+        Debug.Log("[GameManager] 게임 데이터 저장 완료");
+    }
+
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            SaveGameData();
+        }
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+        {
+            SaveGameData();
+        }
+    }
+
     private void OnApplicationQuit()
     {
-        GameSaveManager.Instance.SaveGame();
+        SaveGameData();
+    }
+
+    // 디버그용 메서드
+    public void SetGameTime(float newTime)
+    {
+        gameTime = newTime;
+        Debug.Log($"[GameManager] 게임 시간 설정: {newTime}");
+    }
+
+    public void SetTimeScale(float newScale)
+    {
+        timeScale = newScale;
+        Debug.Log($"[GameManager] 시간 배율 설정: {newScale}");
     }
 }
