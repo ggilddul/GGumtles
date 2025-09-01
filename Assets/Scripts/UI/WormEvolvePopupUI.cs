@@ -6,7 +6,7 @@ using System.Collections;
 public class WormEvolvePopupUI : MonoBehaviour
 {
     [Header("렌더러")]
-    [SerializeField] private OverViewRenderer overviewRenderer;
+    // [SerializeField] private OverViewRenderer overviewRenderer; // 제거됨
 
     [Header("UI 요소")]
     [SerializeField] private TMP_Text nameText;            // 이름 텍스트
@@ -134,7 +134,7 @@ public class WormEvolvePopupUI : MonoBehaviour
             UpdateUI();
             Show();
 
-            LogDebug($"[WormEvolvePopupUI] 진화 팝업 열기: {worm.DisplayName} ({fromStage} → {toStage})");
+            LogDebug($"[WormEvolvePopupUI] 진화 팝업 열기: {worm.name} ({fromStage} → {toStage})");
         }
         catch (System.Exception ex)
         {
@@ -261,7 +261,7 @@ public class WormEvolvePopupUI : MonoBehaviour
             // 이름 텍스트
             if (nameText != null)
             {
-                nameText.text = currentWorm.DisplayName;
+                nameText.text = currentWorm.name;
             }
 
             // 진화 전 텍스트
@@ -285,8 +285,8 @@ public class WormEvolvePopupUI : MonoBehaviour
             // 희귀도 텍스트
             if (rarityText != null)
             {
-                rarityText.text = $"희귀도: {currentWorm.GetRarityText()}";
-                rarityText.color = currentWorm.GetRarityColor();
+                rarityText.text = "희귀도: 일반"; // 단순화: 기본 희귀도
+                rarityText.color = Color.white; // 단순화: 기본 색상
             }
 
             // 세대 텍스트
@@ -320,11 +320,11 @@ public class WormEvolvePopupUI : MonoBehaviour
                 afterImage.sprite = GetLifeStageSprite(currentLifeStage);
             }
 
-            // 오버뷰 렌더러 업데이트
-            if (overviewRenderer != null)
-            {
-                overviewRenderer.RefreshOverview();
-            }
+            // 오버뷰 렌더러 업데이트 - 제거됨
+            // if (overviewRenderer != null)
+            // {
+            //     overviewRenderer.RefreshOverview();
+            // }
         }
         catch (System.Exception ex)
         {
@@ -627,10 +627,10 @@ public class WormEvolvePopupUI : MonoBehaviour
 
         var info = new System.Text.StringBuilder();
         info.AppendLine($"[WormEvolvePopupUI 정보]");
-        info.AppendLine($"벌레: {currentWorm.DisplayName}");
+        info.AppendLine($"벌레: {currentWorm.name}");
         info.AppendLine($"진화: {GetLifeStageName(previousLifeStage)} → {GetLifeStageName(currentLifeStage)}");
         info.AppendLine($"나이: {FormatAge(currentWorm.age)}");
-        info.AppendLine($"희귀도: {currentWorm.GetRarityText()}");
+        info.AppendLine($"희귀도: 일반");
         info.AppendLine($"세대: {currentWorm.generation}");
         info.AppendLine($"표시됨: {isShowing}");
         info.AppendLine($"애니메이션: {(isAnimating ? "진행 중" : "대기")}");

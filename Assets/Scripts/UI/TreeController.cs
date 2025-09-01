@@ -111,6 +111,9 @@ public class TreeController : MonoBehaviour
         isShaking = true;
         OnTreeShakeEvent?.Invoke();
 
+        // 나무 흔들기 사운드 재생
+        AudioManager.Instance?.PlaySFX(AudioManager.SFXType.ShakeTree);
+
         // 흔들기 애니메이션 시작
         if (enableShakeAnimation)
         {

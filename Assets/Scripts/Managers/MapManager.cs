@@ -9,13 +9,12 @@ public class MapManager : MonoBehaviour
     public static MapManager Instance { get; private set; }
 
     [Header("맵 설정")]
-    [SerializeField] private BackgroundType backgroundType = BackgroundType.SpriteRenderer;
+    [SerializeField] private BackgroundType backgroundType = BackgroundType.UIImage;
     [SerializeField] private List<MapData> availableMaps = new List<MapData>();
     [SerializeField] private bool useTransitionAnimation = true;
     // [SerializeField] private float transitionDuration = 1f;  // 미사용
     
     [Header("Background Components")]
-    [SerializeField] private SpriteRenderer backgroundRenderer;
     [SerializeField] private Image backgroundImage;
     
     [Header("애니메이션 설정")]
@@ -26,7 +25,6 @@ public class MapManager : MonoBehaviour
     // 맵 타입 열거형
     public enum BackgroundType
     {
-        SpriteRenderer,
         UIImage
     }
 
@@ -99,7 +97,7 @@ public class MapManager : MonoBehaviour
         InitializeSingleton();
     }
 
-    private void Start()
+    public void Initialize()
     {
         InitializeMapSystem();
     }
@@ -136,14 +134,59 @@ public class MapManager : MonoBehaviour
 
     private void ValidateComponents()
     {
-        if (backgroundRenderer == null && backgroundImage == null)
+        Debug.Log($"[MapManager] ValidateComponents 호출됨 - backgroundImage: {backgroundImage != null}");
+        
+        // 배경 컴포넌트는 선택적이므로 경고를 제거하고 정보 로그로 변경
+        if (backgroundImage == null)
         {
-            Debug.LogError("[MapManager] 배경 컴포넌트가 설정되지 않았습니다.");
+            Debug.LogWarning("[MapManager] 배경 컴포넌트가 설정되지 않았습니다. 맵 배경 기능이 비활성화됩니다.");
+            Debug.LogWarning("  - UI용: Canvas 하위에 Image 오브젝트 생성 후 backgroundImage에 할당");
+            
+            // 자동으로 기본 배경 컴포넌트 생성 시도 (선택적)
+            TryCreateDefaultBackgroundComponent();
+        }
+        else
+        {
+            Debug.Log("[MapManager] 배경 컴포넌트가 설정되어 맵 배경 기능이 활성화됩니다.");
         }
         
         if (availableMaps == null || availableMaps.Count == 0)
         {
-            Debug.LogWarning("[MapManager] 사용 가능한 맵이 설정되지 않았습니다.");
+            Debug.LogWarning("[MapManager] 사용 가능한 맵이 설정되지 않았습니다. Inspector에서 맵을 설정해주세요.");
+            // 기본 맵 추가
+            InitializeDefaultMaps();
+        }
+        else
+        {
+            Debug.Log($"[MapManager] 사용 가능한 맵 {availableMaps.Count}개가 설정되어 있습니다.");
+        }
+    }
+
+    /// <summary>
+    /// 기본 배경 컴포넌트 자동 생성
+    /// </summary>
+    private void TryCreateDefaultBackgroundComponent()
+    {
+        Debug.Log($"[MapManager] 자동 배경 컴포넌트 생성 시도 - BackgroundType: {backgroundType}");
+        
+        // Canvas 하위에 배경 오브젝트 생성
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas != null)
+        {
+            GameObject backgroundObj = new GameObject("MapBackground");
+            backgroundObj.transform.SetParent(canvas.transform);
+            
+            backgroundImage = backgroundObj.AddComponent<Image>();
+            backgroundImage.rectTransform.anchorMin = Vector2.zero;
+            backgroundImage.rectTransform.anchorMax = Vector2.one;
+            backgroundImage.rectTransform.offsetMin = Vector2.zero;
+            backgroundImage.rectTransform.offsetMax = Vector2.zero;
+            
+            Debug.Log("[MapManager] 자동으로 UIImage 배경 컴포넌트를 생성했습니다.");
+        }
+        else
+        {
+            Debug.LogWarning("[MapManager] Canvas를 찾을 수 없어 UIImage 배경을 생성할 수 없습니다.");
         }
     }
 
@@ -333,15 +376,7 @@ public class MapManager : MonoBehaviour
 
     private CanvasGroup GetBackgroundCanvasGroup()
     {
-        switch (backgroundType)
-        {
-            case BackgroundType.SpriteRenderer:
-                return backgroundRenderer?.GetComponent<CanvasGroup>();
-            case BackgroundType.UIImage:
-                return backgroundImage?.GetComponent<CanvasGroup>();
-            default:
-                return null;
-        }
+        return backgroundImage?.GetComponent<CanvasGroup>();
     }
 
     /// <summary>
@@ -369,36 +404,41 @@ public class MapManager : MonoBehaviour
     /// </summary>
     public void UpdateMapBackground()
     {
-        if (!isInitialized || currentMapState == null) return;
+        if (!isInitialized || currentMapState == null) 
+        {
+            Debug.LogWarning("[MapManager] 맵 배경 업데이트 실패 - 초기화되지 않았거나 현재 맵 상태가 없습니다.");
+            return;
+        }
 
         Sprite newSprite = SpriteManager.Instance?.GetMapSprite(currentMapState.mapType, currentMapState.currentPhase);
         if (newSprite == null)
         {
             Debug.LogWarning($"[MapManager] 맵 스프라이트를 찾을 수 없습니다: {currentMapState.mapType}, {currentMapState.currentPhase}");
+            Debug.LogWarning("SpriteManager에 맵 스프라이트가 설정되어 있는지 확인해주세요.");
             return;
         }
 
-        UpdateBackgroundSprite(newSprite);
-        ApplyMapSettings();
+        Debug.Log($"[MapManager] 맵 배경 업데이트 시도: {currentMapState.mapType}, {currentMapState.currentPhase}");
+
+        // 배경 컴포넌트가 있을 때만 스프라이트 업데이트
+        if (backgroundImage != null)
+        {
+            UpdateBackgroundSprite(newSprite);
+            ApplyMapSettings();
+            Debug.Log($"[MapManager] 맵 배경 업데이트 완료: {currentMapState.mapType}");
+        }
+        else
+        {
+            // 배경 컴포넌트가 없어도 정상적인 동작이므로 정보 로그로 변경
+            Debug.LogWarning("[MapManager] 배경 컴포넌트가 설정되지 않아 맵 배경이 업데이트되지 않습니다.");
+        }
     }
 
     private void UpdateBackgroundSprite(Sprite newSprite)
     {
-        switch (backgroundType)
+        if (backgroundImage != null)
         {
-            case BackgroundType.SpriteRenderer:
-                if (backgroundRenderer != null)
-                {
-                    backgroundRenderer.sprite = newSprite;
-                }
-                break;
-
-            case BackgroundType.UIImage:
-                if (backgroundImage != null)
-                {
-                    backgroundImage.sprite = newSprite;
-                }
-                break;
+            backgroundImage.sprite = newSprite;
         }
     }
 
@@ -407,11 +447,6 @@ public class MapManager : MonoBehaviour
         if (currentMapData == null) return;
 
         // 색상 조정
-        if (backgroundRenderer != null)
-        {
-            backgroundRenderer.color = currentMapData.mapTint;
-        }
-        
         if (backgroundImage != null)
         {
             backgroundImage.color = currentMapData.mapTint;

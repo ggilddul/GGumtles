@@ -18,6 +18,11 @@ public class GameSaveManager : MonoBehaviour
 
     private void Awake()
     {
+        InitializeSingleton();
+    }
+
+    private void InitializeSingleton()
+    {
         if (Instance == null)
         {
             Instance = this;
@@ -144,25 +149,53 @@ public class GameSaveManager : MonoBehaviour
     /// </summary>
     private void InitializeAchievementSystem()
     {
-        if (AchievementManager.Instance != null && currentSaveData.unlockedAchIds != null)
+        if (AchievementManager.Instance != null)
         {
-            List<AchievementStatus> statusList = new List<AchievementStatus>();
-            var definitions = AchievementManager.Instance.GetAllDefinitions();
-
-            foreach (var def in definitions)
+            // AchievementManager가 초기화되지 않은 경우 먼저 초기화
+            if (!AchievementManager.Instance.IsInitialized)
             {
-                bool unlocked = currentSaveData.unlockedAchIds.Contains(def.ach_id);
-                statusList.Add(new AchievementStatus
-                {
-                    ach_id = def.ach_id,
-                    isUnlocked = unlocked
-                });
+                AchievementManager.Instance.Initialize();
             }
-            AchievementManager.Instance.Initialize(statusList);
+            
+            if (currentSaveData.unlockedAchIds != null)
+            {
+                AchievementManager.Instance.Initialize(currentSaveData.unlockedAchIds);
+                
+                // 달성 웜 ID 로드
+                if (currentSaveData.achievementWormIds != null)
+                {
+                    LoadAchievementWormIds();
+                }
+            }
         }
         else
         {
-            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 없거나 unlockedAchIds가 null입니다.");
+            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 없습니다.");
+        }
+    }
+
+    /// <summary>
+    /// 달성 웜 ID 로드
+    /// </summary>
+    private void LoadAchievementWormIds()
+    {
+        try
+        {
+            var wormIdsDict = new Dictionary<string, int>();
+            foreach (var wormData in currentSaveData.achievementWormIds)
+            {
+                if (!string.IsNullOrEmpty(wormData.achievementId))
+                {
+                    wormIdsDict[wormData.achievementId] = wormData.wormId;
+                }
+            }
+            
+            AchievementManager.Instance.SetAchievementWormIds(wormIdsDict);
+            Debug.Log($"[GameSaveManager] 달성 웜 ID 로드 완료: {currentSaveData.achievementWormIds.Count}개");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[GameSaveManager] 달성 웜 ID 로드 중 오류: {ex.Message}");
         }
     }
 
@@ -180,6 +213,7 @@ public class GameSaveManager : MonoBehaviour
 
         // 업적 아이디 리스트 초기화 (빈 리스트)
         currentSaveData.unlockedAchIds = new List<string>();
+        currentSaveData.achievementWormIds = new List<AchievementWormData>();
 
         currentSaveData.sfxOption = GameSaveData.AudioOption.High;
         currentSaveData.bgmOption = GameSaveData.AudioOption.High;
@@ -210,6 +244,7 @@ public class GameSaveManager : MonoBehaviour
         if (AchievementManager.Instance != null)
         {
             currentSaveData.unlockedAchIds = GetUnlockedAchIds();
+            currentSaveData.achievementWormIds = GetAchievementWormIds();
         }
 
         StartCoroutine(SaveGameAsync());
@@ -271,13 +306,42 @@ public class GameSaveManager : MonoBehaviour
         var definitions = AchievementManager.Instance.GetAllDefinitions();
         foreach (var def in definitions)
         {
-            if (AchievementManager.Instance.IsUnlocked(def.ach_id))
+            if (AchievementManager.Instance.IsUnlocked(def.achievementId))
             {
-                unlockedIds.Add(def.ach_id);
+                unlockedIds.Add(def.achievementId);
             }
         }
 
         return unlockedIds;
+    }
+
+    /// <summary>
+    /// 달성 웜 ID 리스트 반환
+    /// </summary>
+    public List<AchievementWormData> GetAchievementWormIds()
+    {
+        List<AchievementWormData> wormIds = new List<AchievementWormData>();
+
+        if (AchievementManager.Instance == null)
+        {
+            Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 null입니다.");
+            return wormIds;
+        }
+
+        try
+        {
+            var wormIdsDict = AchievementManager.Instance.GetAchievementWormIds();
+            foreach (var kvp in wormIdsDict)
+            {
+                wormIds.Add(new AchievementWormData(kvp.Key, kvp.Value));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[GameSaveManager] 달성 웜 ID 가져오기 중 오류: {ex.Message}");
+        }
+
+        return wormIds;
     }
 
     /// <summary>

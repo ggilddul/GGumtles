@@ -38,12 +38,12 @@ namespace GGumtles.UI
         [SerializeField] private bool showVerticalScrollbar = true;
         [SerializeField] private bool showHorizontalScrollbar = false;
 
-        [Header("디버그")]
-        [SerializeField] private bool enableDebugLogs = false;
+        // [Header("디버그")] // 필드와 함께 주석 처리
+        // [SerializeField] private new bool enableDebugLogs = false; // 사용되지 않음
 
         // 상태 관리
         private List<GameObject> contentItems = new List<GameObject>();
-        private bool isInitialized = false;
+        private new bool isInitialized = false;
 
         // 이벤트 정의
         public delegate void OnScrollValueChanged(Vector2 scrollValue);

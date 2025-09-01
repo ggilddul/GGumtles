@@ -35,8 +35,8 @@ namespace GGumtles.UI
         [SerializeField] private GridLayoutGroup.Constraint constraint = GridLayoutGroup.Constraint.Flexible;
         [SerializeField] private int constraintCount = 3;
 
-        [Header("디버그")]
-        [SerializeField] private bool enableDebugLogs = false;
+        // [Header("디버그")] // 필드와 함께 주석 처리
+        // [SerializeField] private new bool enableDebugLogs = false; // 사용되지 않음
 
         // 레이아웃 타입 열거형
         public enum LayoutType
@@ -48,7 +48,7 @@ namespace GGumtles.UI
 
         // 상태 관리
         private List<GameObject> layoutItems = new List<GameObject>();
-        private bool isInitialized = false;
+        private new bool isInitialized = false;
 
         // 이벤트 정의
         public delegate void OnLayoutItemAdded(GameObject item);

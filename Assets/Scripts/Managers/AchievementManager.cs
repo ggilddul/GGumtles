@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
+using GGumtles.UI;
 
 public class AchievementManager : MonoBehaviour
 {
@@ -10,7 +11,7 @@ public class AchievementManager : MonoBehaviour
     [Header("업적 설정")]
     [SerializeField] private List<AchievementData> achievementDefinitions;
     
-    private Dictionary<string, AchievementStatus> achievementStates = new();
+    private Dictionary<string, bool> achievementStates = new(); // 단순화: 해금 여부만 저장
     private Dictionary<string, AchievementData> achievementDefinitionsMap = new();
     private bool isInitialized = false;
 
@@ -42,7 +43,7 @@ public class AchievementManager : MonoBehaviour
         }
     }
 
-    private void Start()
+    public void Initialize()
     {
         InitializeAchievementSystem();
     }
@@ -73,7 +74,7 @@ public class AchievementManager : MonoBehaviour
         }
 
         var duplicateIds = achievementDefinitions
-            .GroupBy(x => x.ach_id)
+            .GroupBy(x => x.achievementId)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToList();
@@ -85,13 +86,13 @@ public class AchievementManager : MonoBehaviour
 
         foreach (var def in achievementDefinitions)
         {
-            if (string.IsNullOrEmpty(def.ach_id))
+            if (string.IsNullOrEmpty(def.achievementId))
             {
                 Debug.LogError("[AchievementManager] 업적 ID가 비어있습니다.");
             }
-            if (string.IsNullOrEmpty(def.ach_title))
+            if (string.IsNullOrEmpty(def.achievementTitle))
             {
-                Debug.LogWarning($"[AchievementManager] 업적 '{def.ach_id}'의 제목이 비어있습니다.");
+                Debug.LogWarning($"[AchievementManager] 업적 '{def.achievementId}'의 제목이 비어있습니다.");
             }
         }
     }
@@ -104,9 +105,9 @@ public class AchievementManager : MonoBehaviour
         {
             foreach (var def in achievementDefinitions)
             {
-                if (!string.IsNullOrEmpty(def.ach_id))
+                if (!string.IsNullOrEmpty(def.achievementId))
                 {
-                    achievementDefinitionsMap[def.ach_id] = def;
+                    achievementDefinitionsMap[def.achievementId] = def;
                 }
             }
         }
@@ -120,22 +121,18 @@ public class AchievementManager : MonoBehaviour
         {
             foreach (var def in achievementDefinitions)
             {
-                if (!string.IsNullOrEmpty(def.ach_id) && !achievementStates.ContainsKey(def.ach_id))
+                if (!string.IsNullOrEmpty(def.achievementId) && !achievementStates.ContainsKey(def.achievementId))
                 {
-                    achievementStates.Add(def.ach_id, new AchievementStatus
-                    {
-                        ach_id = def.ach_id,
-                        isUnlocked = false
-                    });
+                    achievementStates.Add(def.achievementId, false); // 기본값: 해금되지 않음
                 }
             }
         }
     }
 
     /// <summary>
-    /// 저장된 데이터로 초기화
+    /// 저장된 데이터로 초기화 (단순화)
     /// </summary>
-    public void Initialize(List<AchievementStatus> savedStatuses)
+    public void Initialize(List<string> unlockedAchievementIds)
     {
         if (!isInitialized)
         {
@@ -147,13 +144,13 @@ public class AchievementManager : MonoBehaviour
         {
             InitializeDefaultStates();
 
-            if (savedStatuses != null)
+            if (unlockedAchievementIds != null)
             {
-                foreach (var saved in savedStatuses)
+                foreach (var achievementId in unlockedAchievementIds)
                 {
-                    if (!string.IsNullOrEmpty(saved.ach_id) && achievementStates.ContainsKey(saved.ach_id))
+                    if (!string.IsNullOrEmpty(achievementId) && achievementStates.ContainsKey(achievementId))
                     {
-                        achievementStates[saved.ach_id].isUnlocked = saved.isUnlocked;
+                        achievementStates[achievementId] = true; // 해금됨
                     }
                 }
             }
@@ -169,7 +166,7 @@ public class AchievementManager : MonoBehaviour
     /// <summary>
     /// 업적 달성 체크
     /// </summary>
-    public void CheckAchievement(string ach_id)
+    public void CheckAchievement(string achievementId)
     {
         if (!isInitialized)
         {
@@ -177,7 +174,7 @@ public class AchievementManager : MonoBehaviour
             return;
         }
 
-        if (string.IsNullOrEmpty(ach_id))
+        if (string.IsNullOrEmpty(achievementId))
         {
             Debug.LogWarning("[AchievementManager] 업적 ID가 비어있습니다.");
             return;
@@ -185,16 +182,16 @@ public class AchievementManager : MonoBehaviour
 
         try
         {
-            if (!achievementStates.ContainsKey(ach_id))
+            if (!achievementStates.ContainsKey(achievementId))
             {
-                Debug.LogWarning($"[AchievementManager] 존재하지 않는 업적 ID: {ach_id}");
+                Debug.LogWarning($"[AchievementManager] 존재하지 않는 업적 ID: {achievementId}");
                 return;
             }
 
-            var status = achievementStates[ach_id];
-            if (!status.isUnlocked)
+            bool isUnlocked = achievementStates[achievementId];
+            if (!isUnlocked)
             {
-                UnlockAchievement(ach_id);
+                UnlockAchievement(achievementId);
             }
         }
         catch (Exception ex)
@@ -206,15 +203,20 @@ public class AchievementManager : MonoBehaviour
     /// <summary>
     /// 업적 해금
     /// </summary>
-    private void UnlockAchievement(string ach_id)
+    private void UnlockAchievement(string achievementId)
     {
-        var status = achievementStates[ach_id];
-        status.isUnlocked = true;
+        achievementStates[achievementId] = true; // 해금됨
 
-        var achievementData = GetAchievementData(ach_id);
+        var achievementData = GetAchievementData(achievementId);
+        
+        // 달성 웜 ID 설정 (Achievement2 전용)
+        if (achievementData != null && achievementData.achieveWormId == -1)
+        {
+            SetAchievementWormId(achievementData);
+        }
         
         // 이벤트 발생
-        OnAchievementUnlockedEvent?.Invoke(ach_id, achievementData);
+        OnAchievementUnlockedEvent?.Invoke(achievementId, achievementData);
 
         // 팝업 표시
         if (achievementData != null)
@@ -222,7 +224,8 @@ public class AchievementManager : MonoBehaviour
             int index = achievementDefinitions.IndexOf(achievementData);
             if (index >= 0)
             {
-                PopupManager.Instance?.ShowAchievementPopup(index);
+                // UIPrefabManager 삭제로 인해 AchieveTabUI에서 직접 처리
+                Debug.Log($"[AchievementManager] 업적 해금 알림: {achievementData.achievementTitle}");
             }
         }
 
@@ -232,39 +235,130 @@ public class AchievementManager : MonoBehaviour
             GameSaveManager.Instance.SaveGame();
         }
 
-        Debug.Log($"[AchievementManager] 업적 해금: {achievementData?.ach_title ?? ach_id}");
+        Debug.Log($"[AchievementManager] 업적 해금: {achievementData?.achievementTitle ?? achievementId}");
+    }
+
+    /// <summary>
+    /// 업적 달성 시 웜 ID 설정 (Achievement2 전용)
+    /// </summary>
+    private void SetAchievementWormId(AchievementData achievementData)
+    {
+        try
+        {
+            if (WormManager.Instance == null)
+            {
+                Debug.LogWarning("[AchievementManager] WormManager 인스턴스가 없습니다.");
+                return;
+            }
+
+            // 현재 활성 웜을 달성 웜으로 설정
+            var currentWorm = WormManager.Instance.CurrentWorm;
+            if (currentWorm != null)
+            {
+                achievementData.achieveWormId = currentWorm.wormId;
+                Debug.Log($"[AchievementManager] 업적 달성 웜 ID 설정: {achievementData.achievementTitle} -> 웜 ID: {currentWorm.wormId} ({currentWorm.name})");
+            }
+            else
+            {
+                Debug.LogWarning("[AchievementManager] 현재 활성 웜이 없어 달성 웜 ID를 설정할 수 없습니다.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[AchievementManager] 달성 웜 ID 설정 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 달성 웜 ID 목록 가져오기 (저장용)
+    /// </summary>
+    public Dictionary<string, int> GetAchievementWormIds()
+    {
+        var wormIds = new Dictionary<string, int>();
+        
+        try
+        {
+            foreach (var kvp in achievementStates)
+            {
+                string achievementId = kvp.Key;
+                bool isUnlocked = kvp.Value;
+                
+                if (isUnlocked)
+                {
+                    var achievementData = GetAchievementData(achievementId);
+                    if (achievementData != null && achievementData.achieveWormId >= 0)
+                    {
+                        wormIds[achievementId] = achievementData.achieveWormId;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[AchievementManager] 달성 웜 ID 목록 가져오기 중 오류: {ex.Message}");
+        }
+        
+        return wormIds;
+    }
+
+    /// <summary>
+    /// 달성 웜 ID 설정 (로드용)
+    /// </summary>
+    public void SetAchievementWormIds(Dictionary<string, int> wormIds)
+    {
+        try
+        {
+            if (wormIds == null) return;
+            
+            foreach (var kvp in wormIds)
+            {
+                string achievementId = kvp.Key;
+                int wormId = kvp.Value;
+                
+                var achievementData = GetAchievementData(achievementId);
+                if (achievementData != null)
+                {
+                    achievementData.achieveWormId = wormId;
+                    Debug.Log($"[AchievementManager] 달성 웜 ID 로드: {achievementData.achievementTitle} -> 웜 ID: {wormId}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[AchievementManager] 달성 웜 ID 설정 중 오류: {ex.Message}");
+        }
     }
 
     /// <summary>
     /// 업적 진행도 업데이트
     /// </summary>
-    public void UpdateProgress(string ach_id, float progress)
+    public void UpdateProgress(string achievementId, float progress)
     {
-        if (!isInitialized || string.IsNullOrEmpty(ach_id)) return;
+        if (!isInitialized || string.IsNullOrEmpty(achievementId)) return;
 
-        OnAchievementProgressChangedEvent?.Invoke(ach_id, progress);
+        OnAchievementProgressChangedEvent?.Invoke(achievementId, progress);
     }
 
     /// <summary>
-    /// 업적 상태 조회
+    /// 업적 해금 여부 조회 (단순화)
     /// </summary>
-    public AchievementStatus GetStatusById(string ach_id)
+    public bool IsUnlocked(string achievementId)
     {
-        if (!isInitialized || string.IsNullOrEmpty(ach_id))
-            return null;
+        if (!isInitialized || string.IsNullOrEmpty(achievementId))
+            return false;
 
-        return achievementStates.TryGetValue(ach_id, out var status) ? status : null;
+        return achievementStates.TryGetValue(achievementId, out var isUnlocked) ? isUnlocked : false;
     }
 
     /// <summary>
     /// 업적 데이터 조회
     /// </summary>
-    public AchievementData GetAchievementData(string ach_id)
+    public AchievementData GetAchievementData(string achievementId)
     {
-        if (string.IsNullOrEmpty(ach_id))
+        if (string.IsNullOrEmpty(achievementId))
             return null;
 
-        return achievementDefinitionsMap.TryGetValue(ach_id, out var data) ? data : null;
+        return achievementDefinitionsMap.TryGetValue(achievementId, out var data) ? data : null;
     }
 
     /// <summary>
@@ -276,31 +370,12 @@ public class AchievementManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 모든 업적 상태 반환
-    /// </summary>
-    public List<AchievementStatus> GetAllStatuses()
-    {
-        return achievementStates.Values.ToList();
-    }
-
-    /// <summary>
-    /// 업적 해금 여부 확인
-    /// </summary>
-    public bool IsUnlocked(string ach_id)
-    {
-        if (!isInitialized || string.IsNullOrEmpty(ach_id))
-            return false;
-
-        return achievementStates.TryGetValue(ach_id, out var status) && status.isUnlocked;
-    }
-
-    /// <summary>
-    /// 해금된 업적 ID 목록 반환
+    /// 해금된 업적 ID 목록 반환 (단순화)
     /// </summary>
     public List<string> GetUnlockedIds()
     {
         return achievementStates
-            .Where(p => p.Value.isUnlocked)
+            .Where(p => p.Value)
             .Select(p => p.Key)
             .ToList();
     }
@@ -310,7 +385,7 @@ public class AchievementManager : MonoBehaviour
     /// </summary>
     public int GetUnlockedCount()
     {
-        return achievementStates.Count(p => p.Value.isUnlocked);
+        return achievementStates.Count(p => p.Value);
     }
 
     /// <summary>
@@ -405,9 +480,9 @@ public class AchievementManager : MonoBehaviour
     {
         if (!isInitialized) return;
 
-        foreach (var status in achievementStates.Values)
+        foreach (var achId in achievementStates.Keys.ToList())
         {
-            status.isUnlocked = false;
+            achievementStates[achId] = false;
         }
 
         if (GameSaveManager.Instance != null)

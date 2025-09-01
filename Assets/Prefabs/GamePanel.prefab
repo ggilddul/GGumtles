@@ -335,7 +335,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.8066038, g: 1, b: 0.89090466, a: 1}
+  m_Color: {r: 1, g: 0.83401245, b: 0.80784315, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -699,6 +699,7 @@ GameObject:
   - component: {fileID: 6259191753234519403}
   - component: {fileID: 7597833313136603861}
   - component: {fileID: 1345496638814050147}
+  - component: {fileID: 7113068016552484997}
   m_Layer: 5
   m_Name: GamePlayButton
   m_TagString: Untagged
@@ -823,6 +824,20 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 1}
   m_EffectDistance: {x: 4, y: -4}
   m_UseGraphicAlpha: 1
+--- !u!114 &7113068016552484997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7094349239344378776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buttonAction: 16
+  actionParameter: -1
 --- !u!1 &8625970921060183721
 GameObject:
   m_ObjectHideFlags: 0

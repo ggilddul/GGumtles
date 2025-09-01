@@ -3,41 +3,36 @@ using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
 
+/// <summary>
+/// 스프라이트 매니저 - 맵 스프라이트 관리 및 벌레 스프라이트 합성
+/// 1. 맵 스프라이트 관리 (타입별, 시간대별)
+/// 2. WormData의 아이템 정보를 통해 완성된 벌레 스프라이트 생성
+/// 3. 생명주기에 따른 크기 조절된 스프라이트를 홈 탭에 표시
+/// </summary>
 public class SpriteManager : MonoBehaviour
 {
     public static SpriteManager Instance { get; private set; }
 
-    [Header("LifeStage Sprites")]
-    [SerializeField] private Sprite[] lifeStageSprites;
-    
-    [Header("Map Sprites")]
+    [Header("맵 스프라이트")]
     [SerializeField] private List<MapSpriteSet> mapSpriteSets;
     
-    [Header("UI Sprites")]
-    [SerializeField] private List<UISpriteSet> uiSpriteSets;
+    [Header("벌레 기본 스프라이트")]
+    [SerializeField] private Sprite[] lifeStageSprites;  // 생명주기별 기본 벌레 스프라이트
     
-    [Header("Item Sprites")]
+    [Header("아이템 스프라이트")]
     [SerializeField] private List<ItemSpriteSet> itemSpriteSets;
     
-    [Header("Achievement Sprites")]
-    [SerializeField] private List<AchievementSpriteSet> achievementSpriteSets;
+    [Header("스프라이트 합성 설정")]
+    [SerializeField] private Vector2 baseWormSize = new Vector2(300f, 300f);  // 기본 벌레 크기
+    [SerializeField] private float[] lifeStageScales = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 1.0f, 0.8f };  // 생명주기별 크기 배율 (성체가 1.0, 사망은 0.8)
     
-    [Header("설정")]
+    [Header("캐시 설정")]
     [SerializeField] private bool enableCaching = true;
-    // [SerializeField] private bool enableAsyncLoading = true;  // 미사용
-    [SerializeField] private int maxCacheSize = 100;
+    [SerializeField] private int maxCacheSize = 50;
     [SerializeField] private float cacheCleanupInterval = 300f; // 5분
-
-    // 스프라이트 타입 열거형
-    public enum SpriteType
-    {
-        LifeStage,
-        Map,
-        UI,
-        Item,
-        Achievement,
-        Custom
-    }
+    
+    [Header("디버그 설정")]
+    [SerializeField] private bool enableDebugLogs = false;
 
     // 맵 타입 열거형
     public enum MapType 
@@ -56,19 +51,19 @@ public class SpriteManager : MonoBehaviour
         Night 
     }
 
-    // UI 타입 열거형
-    public enum UIType
+    // 생명주기 열거형
+    public enum LifeStage
     {
-        Button,
-        Icon,
-        Background,
-        Frame,
-        Custom
+        Egg = 0,        // 알
+        Larva1 = 1,     // 제1유충기
+        Larva2 = 2,     // 제2유충기
+        Larva3 = 3,     // 제3유충기
+        Larva4 = 4,     // 제4유충기
+        Adult = 5,      // 성체
+        Dead = 6        // 사망
     }
 
-    // 아이템 타입은 ItemData.ItemType 사용
-
-    // 스프라이트 세트 클래스들
+    // 맵 스프라이트 세트
     [System.Serializable]
     public class MapSpriteSet
     {
@@ -79,33 +74,28 @@ public class SpriteManager : MonoBehaviour
         public string description;
     }
 
-    [System.Serializable]
-    public class UISpriteSet
-    {
-        public UIType uiType;
-        public string spriteName;
-        public Sprite sprite;
-        public string description;
-    }
-
+    // 아이템 스프라이트 세트
     [System.Serializable]
     public class ItemSpriteSet
     {
         public ItemData.ItemType itemType;
         public string itemId;
         public Sprite sprite;
-        public Sprite icon;
+        public Vector2 offset = Vector2.zero;  // 벌레 기준 오프셋
+        public Vector2 scale = Vector2.one;    // 크기 조절
+        public int sortingOrder = 0;           // 렌더링 순서
         public string description;
     }
 
+    // 완성된 벌레 스프라이트 정보
     [System.Serializable]
-    public class AchievementSpriteSet
+    public class CompletedWormSprite
     {
-        public string achievementId;
-        public Sprite unlockedSprite;
-        public Sprite lockedSprite;
-        public Sprite icon;
-        public string description;
+        public Sprite sprite;                  // 최종 합성된 스프라이트
+        public Vector2 size;                   // 최종 크기
+        public float scale;                    // 적용된 크기 배율
+        public LifeStage lifeStage;            // 생명주기
+        public List<string> equippedItems;     // 장착된 아이템들
     }
 
     // 캐시 시스템
@@ -116,23 +106,23 @@ public class SpriteManager : MonoBehaviour
     // 맵 스프라이트 테이블
     private Dictionary<MapType, Dictionary<MapPhase, Sprite>> mapSpriteTable;
     
-    // 로딩 상태
+    // 완성된 벌레 스프라이트 캐시
+    private Dictionary<string, CompletedWormSprite> completedWormCache = new Dictionary<string, CompletedWormSprite>();
+    
+    // 상태 관리
     private bool isInitialized = false;
-    private bool isLoading = false;
     private Coroutine cacheCleanupCoroutine;
 
     // 이벤트 정의
-    public delegate void OnSpriteLoaded(string spriteKey, Sprite sprite);
-    public event OnSpriteLoaded OnSpriteLoadedEvent;
-
-    public delegate void OnSpriteLoadFailed(string spriteKey, string error);
-    public event OnSpriteLoadFailed OnSpriteLoadFailedEvent;
+    public delegate void OnWormSpriteCompleted(string wormId, CompletedWormSprite completedSprite);
+    public event OnWormSpriteCompleted OnWormSpriteCompletedEvent;
 
     // 프로퍼티
     public bool IsInitialized => isInitialized;
-    public bool IsLoading => isLoading;
     public int CacheSize => spriteCache.Count;
-    public int MaxCacheSize => maxCacheSize;
+    public int CompletedWormCacheSize => completedWormCache.Count;
+
+    #region Unity 생명주기
 
     private void Awake()
     {
@@ -143,6 +133,10 @@ public class SpriteManager : MonoBehaviour
     {
         InitializeSpriteSystem();
     }
+
+    #endregion
+
+    #region 초기화
 
     private void InitializeSingleton()
     {
@@ -167,7 +161,7 @@ public class SpriteManager : MonoBehaviour
             StartCacheCleanup();
             isInitialized = true;
             
-            Debug.Log($"[SpriteManager] 스프라이트 시스템 초기화 완료 - 캐시: {enableCaching}");
+            Debug.Log($"[SpriteManager] 스프라이트 시스템 초기화 완료");
         }
         catch (System.Exception ex)
         {
@@ -179,12 +173,17 @@ public class SpriteManager : MonoBehaviour
     {
         if (lifeStageSprites == null || lifeStageSprites.Length == 0)
         {
-            Debug.LogWarning("[SpriteManager] LifeStage 스프라이트가 설정되지 않았습니다.");
+            Debug.LogWarning("[SpriteManager] 생명주기 스프라이트가 설정되지 않았습니다.");
         }
         
         if (mapSpriteSets == null || mapSpriteSets.Count == 0)
         {
             Debug.LogWarning("[SpriteManager] 맵 스프라이트 세트가 설정되지 않았습니다.");
+        }
+
+        if (itemSpriteSets == null || itemSpriteSets.Count == 0)
+        {
+            Debug.LogWarning("[SpriteManager] 아이템 스프라이트 세트가 설정되지 않았습니다. Inspector에서 설정해주세요.");
         }
     }
 
@@ -209,6 +208,322 @@ public class SpriteManager : MonoBehaviour
             }
         }
     }
+
+    #endregion
+
+    #region 맵 스프라이트 관리
+
+    /// <summary>
+    /// 맵 스프라이트 가져오기
+    /// </summary>
+    public Sprite GetMapSprite(MapType mapType, MapPhase phase)
+    {
+        if (!isInitialized)
+        {
+            Debug.LogWarning("[SpriteManager] 아직 초기화되지 않았습니다.");
+            return null;
+        }
+
+        string cacheKey = $"map_{mapType}_{phase}";
+        Sprite cachedSprite = GetFromCache(cacheKey);
+        
+        if (cachedSprite != null)
+        {
+            return cachedSprite;
+        }
+
+        if (mapSpriteTable.TryGetValue(mapType, out var phaseDict) &&
+            phaseDict.TryGetValue(phase, out var sprite))
+        {
+            if (sprite != null)
+            {
+                AddToCache(cacheKey, sprite);
+            }
+            return sprite;
+        }
+
+        Debug.LogWarning($"[SpriteManager] 맵 스프라이트를 찾을 수 없습니다: {mapType}, {phase}");
+        return null;
+    }
+
+    #endregion
+
+    #region 벌레 스프라이트 합성
+
+    /// <summary>
+    /// WormData를 기반으로 완성된 벌레 스프라이트 생성
+    /// </summary>
+    public CompletedWormSprite CreateCompletedWormSprite(WormData wormData)
+    {
+        if (!isInitialized || wormData == null)
+        {
+            Debug.LogWarning("[SpriteManager] 초기화되지 않았거나 유효하지 않은 WormData입니다.");
+            return null;
+        }
+
+        // 캐시 키 생성
+        string cacheKey = GenerateWormCacheKey(wormData);
+        
+        // 캐시에서 확인
+        if (completedWormCache.TryGetValue(cacheKey, out var cachedSprite))
+        {
+            return cachedSprite;
+        }
+
+        try
+        {
+            // 기본 벌레 스프라이트 가져오기
+            Sprite baseSprite = GetLifeStageSprite(wormData.lifeStage);
+            if (baseSprite == null)
+            {
+                Debug.LogError($"[SpriteManager] 생명주기 스프라이트를 찾을 수 없습니다: {wormData.lifeStage}");
+                return null;
+            }
+
+            // 아이템 스프라이트들 수집 (알 단계에서는 아이템 장착 불가)
+            List<Sprite> itemSprites = new List<Sprite>();
+            List<Vector2> itemOffsets = new List<Vector2>();
+            List<Vector2> itemScales = new List<Vector2>();
+            List<int> itemSortingOrders = new List<int>();
+
+            // 장착된 아이템들 처리 (알 단계나 사망 단계가 아닐 때만)
+            if (wormData.lifeStage != (int)LifeStage.Egg && wormData.lifeStage != (int)LifeStage.Dead)
+            {
+                // 개별 아이템 필드들 처리
+                string[] equippedItems = { wormData.hatItemId, wormData.faceItemId, wormData.costumeItemId };
+                
+                foreach (var itemId in equippedItems)
+                {
+                    if (!string.IsNullOrEmpty(itemId))
+                    {
+                        var itemSprite = GetItemSprite(itemId);
+                        if (itemSprite != null)
+                        {
+                            itemSprites.Add(itemSprite.sprite);
+                            itemOffsets.Add(itemSprite.offset);
+                            itemScales.Add(itemSprite.scale);
+                            itemSortingOrders.Add(itemSprite.sortingOrder);
+                        }
+                    }
+                }
+            }
+
+            // 스프라이트 합성
+            Sprite completedSprite = CombineSprites(baseSprite, itemSprites, itemOffsets, itemScales, itemSortingOrders);
+            
+            // 사망한 벌레는 회색조 처리
+            if (wormData.lifeStage == (int)LifeStage.Dead)
+            {
+                completedSprite = ProcessDeadWormSprite(completedSprite);
+            }
+            
+            // 생명주기에 따른 크기 계산
+            float lifeStageScale = GetLifeStageScale(wormData.lifeStage);
+            Vector2 finalSize = baseWormSize * lifeStageScale;
+
+            // 완성된 스프라이트 정보 생성
+            var completedWormSprite = new CompletedWormSprite
+            {
+                sprite = completedSprite,
+                size = finalSize,
+                scale = lifeStageScale,
+                lifeStage = (LifeStage)wormData.lifeStage,
+                equippedItems = (wormData.lifeStage == (int)LifeStage.Egg || wormData.lifeStage == (int)LifeStage.Dead) ? 
+                    new List<string>() : // 알 단계나 사망 단계에서는 빈 리스트
+                    GetEquippedItemsList(wormData)
+            };
+
+            // 캐시에 저장
+            completedWormCache[cacheKey] = completedWormSprite;
+
+            // 이벤트 발생
+            OnWormSpriteCompletedEvent?.Invoke(wormData.wormId.ToString(), completedWormSprite);
+
+            string lifeStageName = GetLifeStageName(wormData.lifeStage);
+            Debug.Log($"[SpriteManager] 벌레 스프라이트 완성: {wormData.name} (생명주기: {lifeStageName}, 크기: {finalSize})");
+
+            return completedWormSprite;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[SpriteManager] 벌레 스프라이트 생성 중 오류: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 생명주기 스프라이트 가져오기
+    /// </summary>
+    public Sprite GetLifeStageSprite(int lifeStage)
+    {
+        if (lifeStage < 0 || lifeStage >= lifeStageSprites.Length)
+        {
+            Debug.LogError($"[SpriteManager] 잘못된 생명주기 단계: {lifeStage}");
+            return null;
+        }
+
+        return lifeStageSprites[lifeStage];
+    }
+
+    /// <summary>
+    /// 아이템 스프라이트 정보 가져오기
+    /// </summary>
+    private ItemSpriteSet GetItemSprite(string itemId)
+    {
+        if (itemSpriteSets == null) return null;
+
+        return itemSpriteSets.FirstOrDefault(s => s.itemId == itemId);
+    }
+
+    /// <summary>
+    /// 생명주기에 따른 크기 배율 가져오기
+    /// </summary>
+    private float GetLifeStageScale(int lifeStage)
+    {
+        if (lifeStage < 0 || lifeStage >= lifeStageScales.Length)
+        {
+            return 1.0f; // 기본 크기
+        }
+
+        return lifeStageScales[lifeStage];
+    }
+
+    /// <summary>
+    /// 생명주기 이름 가져오기
+    /// </summary>
+    private string GetLifeStageName(int lifeStage)
+    {
+        switch (lifeStage)
+        {
+            case 0: return "알";
+            case 1: return "제1유충기";
+            case 2: return "제2유충기";
+            case 3: return "제3유충기";
+            case 4: return "제4유충기";
+            case 5: return "성체";
+            case 6: return "사망";
+            default: return $"단계{lifeStage}";
+        }
+    }
+
+    /// <summary>
+    /// 벌레 캐시 키 생성
+    /// </summary>
+    private string GenerateWormCacheKey(WormData wormData)
+    {
+        var equippedItems = GetEquippedItemsList(wormData);
+        string itemsString = string.Join(",", equippedItems.OrderBy(x => x));
+        return $"worm_{wormData.lifeStage}_{itemsString}";
+    }
+
+    /// <summary>
+    /// WormData에서 장착된 아이템 리스트 생성
+    /// </summary>
+    private List<string> GetEquippedItemsList(WormData wormData)
+    {
+        var items = new List<string>();
+        if (!string.IsNullOrEmpty(wormData.hatItemId)) items.Add(wormData.hatItemId);
+        if (!string.IsNullOrEmpty(wormData.faceItemId)) items.Add(wormData.faceItemId);
+        if (!string.IsNullOrEmpty(wormData.costumeItemId)) items.Add(wormData.costumeItemId);
+        return items;
+    }
+
+    /// <summary>
+    /// 스프라이트 합성 (기본 벌레 + 아이템들)
+    /// </summary>
+    private Sprite CombineSprites(Sprite baseSprite, List<Sprite> itemSprites, List<Vector2> offsets, List<Vector2> scales, List<int> sortingOrders)
+    {
+        // 간단한 구현: 현재는 기본 스프라이트만 반환
+        // 실제로는 RenderTexture를 사용하여 스프라이트들을 합성해야 함
+        // 여기서는 기본 스프라이트를 반환하고, 향후 고급 합성 기능을 추가할 수 있음
+        
+        return baseSprite;
+    }
+
+    /// <summary>
+    /// 사망한 벌레 스프라이트 처리 (회색조 적용)
+    /// </summary>
+    private Sprite ProcessDeadWormSprite(Sprite originalSprite)
+    {
+        // 간단한 구현: 현재는 원본 스프라이트 반환
+        // 실제로는 Material을 사용하여 회색조 효과를 적용해야 함
+        // 여기서는 원본 스프라이트를 반환하고, 향후 고급 효과를 추가할 수 있음
+        
+        return originalSprite;
+    }
+
+    #endregion
+
+    #region 홈 탭용 스프라이트
+
+    /// <summary>
+    /// 홈 탭용 완성된 벌레 스프라이트 가져오기 (크기 조절됨)
+    /// </summary>
+    public CompletedWormSprite GetHomeTabWormSprite(WormData wormData)
+    {
+        var completedSprite = CreateCompletedWormSprite(wormData);
+        if (completedSprite != null)
+        {
+            // 홈 탭용 추가 크기 조절 (필요시)
+            completedSprite.size *= 1.2f; // 홈 탭에서는 20% 더 크게
+        }
+        return completedSprite;
+    }
+
+    /// <summary>
+    /// 완성된 벌레 스프라이트 캐시 정리
+    /// </summary>
+    public void ClearCompletedWormCache()
+    {
+        completedWormCache.Clear();
+        Debug.Log("[SpriteManager] 완성된 벌레 스프라이트 캐시 정리 완료");
+    }
+
+    #endregion
+
+    #region 기존 호환성 메서드
+
+    /// <summary>
+    /// 모자 스프라이트 가져오기
+    /// </summary>
+    public Sprite GetHatSprite(string itemId)
+    {
+        return GetItemSprite(itemId)?.sprite;
+    }
+
+    /// <summary>
+    /// 얼굴 스프라이트 가져오기
+    /// </summary>
+    public Sprite GetFaceSprite(string itemId)
+    {
+        return GetItemSprite(itemId)?.sprite;
+    }
+
+    /// <summary>
+    /// 의상 스프라이트 가져오기
+    /// </summary>
+    public Sprite GetCostumeSprite(string itemId)
+    {
+        return GetItemSprite(itemId)?.sprite;
+    }
+
+    /// <summary>
+    /// 업적 스프라이트 가져오기 (기본 스프라이트 반환)
+    /// </summary>
+    public Sprite GetAchievementSprite(string achievementId, bool isUnlocked = true)
+    {
+        // 간단한 구현: 기본 스프라이트 반환
+        // 실제로는 achievementSpriteSets에서 찾아야 함
+        if (enableDebugLogs)
+        {
+            Debug.Log($"[SpriteManager] GetAchievementSprite 호출됨: {achievementId}, {isUnlocked} - 기본 스프라이트 반환");
+        }
+        return null;
+    }
+
+    #endregion
+
+    #region 캐시 시스템
 
     private void InitializeCaching()
     {
@@ -288,342 +603,30 @@ public class SpriteManager : MonoBehaviour
         cacheTimestamps.Remove(key);
     }
 
-    /// <summary>
-    /// 생명주기 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetLifeStageSprite(int stage)
-    {
-        if (!isInitialized)
-        {
-            Debug.LogWarning("[SpriteManager] 아직 초기화되지 않았습니다.");
-            return null;
-        }
+    #endregion
 
-        if (stage < 0 || stage >= lifeStageSprites.Length)
-        {
-            Debug.LogError($"[SpriteManager] 잘못된 생명주기 단계: {stage}");
-            return null;
-        }
-
-        string cacheKey = $"lifeStage_{stage}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        Sprite sprite = lifeStageSprites[stage];
-        if (sprite != null)
-        {
-            AddToCache(cacheKey, sprite);
-        }
-
-        return sprite;
-    }
+    #region 유틸리티 메서드
 
     /// <summary>
-    /// 맵 스프라이트 가져오기
+    /// 스프라이트 매니저 정보 반환
     /// </summary>
-    public Sprite GetMapSprite(MapType mapType, MapPhase phase)
+    public string GetSpriteManagerInfo()
     {
-        if (!isInitialized)
-        {
-            Debug.LogWarning("[SpriteManager] 아직 초기화되지 않았습니다.");
-            return null;
-        }
+        var info = new System.Text.StringBuilder();
+        info.AppendLine($"[스프라이트 매니저 정보]");
+        info.AppendLine($"초기화됨: {isInitialized}");
+        info.AppendLine($"캐시 크기: {CacheSize}/{maxCacheSize}");
+        info.AppendLine($"완성된 벌레 캐시: {CompletedWormCacheSize}");
+        info.AppendLine($"맵 스프라이트 세트: {mapSpriteSets?.Count ?? 0}개");
+        info.AppendLine($"생명주기 스프라이트: {lifeStageSprites?.Length ?? 0}개");
+        info.AppendLine($"아이템 스프라이트: {itemSpriteSets?.Count ?? 0}개");
 
-        string cacheKey = $"map_{mapType}_{phase}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        if (mapSpriteTable.TryGetValue(mapType, out var phaseDict) &&
-            phaseDict.TryGetValue(phase, out var sprite))
-        {
-            if (sprite != null)
-            {
-                AddToCache(cacheKey, sprite);
-            }
-            return sprite;
-        }
-
-        Debug.LogWarning($"[SpriteManager] 맵 스프라이트를 찾을 수 없습니다: {mapType}, {phase}");
-        return null;
+        return info.ToString();
     }
 
-    /// <summary>
-    /// UI 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetUISprite(UIType uiType, string spriteName)
-    {
-        if (!isInitialized) return null;
+    #endregion
 
-        string cacheKey = $"ui_{uiType}_{spriteName}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        if (uiSpriteSets != null)
-        {
-            var spriteSet = uiSpriteSets.FirstOrDefault(s => s.uiType == uiType && s.spriteName == spriteName);
-            if (spriteSet?.sprite != null)
-            {
-                AddToCache(cacheKey, spriteSet.sprite);
-                return spriteSet.sprite;
-            }
-        }
-
-        Debug.LogWarning($"[SpriteManager] UI 스프라이트를 찾을 수 없습니다: {uiType}, {spriteName}");
-        return null;
-    }
-
-    /// <summary>
-    /// 아이템 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetItemSprite(ItemData.ItemType itemType, string itemId)
-    {
-        if (!isInitialized) return null;
-
-        string cacheKey = $"item_{itemType}_{itemId}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        if (itemSpriteSets != null)
-        {
-            var spriteSet = itemSpriteSets.FirstOrDefault(s => s.itemType == itemType && s.itemId == itemId);
-            if (spriteSet?.sprite != null)
-            {
-                AddToCache(cacheKey, spriteSet.sprite);
-                return spriteSet.sprite;
-            }
-        }
-
-        Debug.LogWarning($"[SpriteManager] 아이템 스프라이트를 찾을 수 없습니다: {itemType}, {itemId}");
-        return null;
-    }
-
-    /// <summary>
-    /// 아이템 아이콘 가져오기
-    /// </summary>
-    public Sprite GetItemIcon(ItemData.ItemType itemType, string itemId)
-    {
-        if (!isInitialized) return null;
-
-        string cacheKey = $"itemIcon_{itemType}_{itemId}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        if (itemSpriteSets != null)
-        {
-            var spriteSet = itemSpriteSets.FirstOrDefault(s => s.itemType == itemType && s.itemId == itemId);
-            if (spriteSet?.icon != null)
-            {
-                AddToCache(cacheKey, spriteSet.icon);
-                return spriteSet.icon;
-            }
-        }
-
-        Debug.LogWarning($"[SpriteManager] 아이템 아이콘을 찾을 수 없습니다: {itemType}, {itemId}");
-        return null;
-    }
-
-    /// <summary>
-    /// 모자 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetHatSprite(string itemId)
-    {
-        return GetItemSprite(ItemData.ItemType.Hat, itemId);
-    }
-
-    /// <summary>
-    /// 얼굴 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetFaceSprite(string itemId)
-    {
-        return GetItemSprite(ItemData.ItemType.Face, itemId);
-    }
-
-    /// <summary>
-    /// 의상 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetCostumeSprite(string itemId)
-    {
-        return GetItemSprite(ItemData.ItemType.Costume, itemId);
-    }
-
-    /// <summary>
-    /// 액세서리 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetAccessorySprite(string itemId)
-    {
-        return GetItemSprite(ItemData.ItemType.Accessory, itemId);
-    }
-
-    /// <summary>
-    /// 업적 스프라이트 가져오기
-    /// </summary>
-    public Sprite GetAchievementSprite(string achievementId, bool isUnlocked = true)
-    {
-        if (!isInitialized) return null;
-
-        string cacheKey = $"achievement_{achievementId}_{isUnlocked}";
-        Sprite cachedSprite = GetFromCache(cacheKey);
-        
-        if (cachedSprite != null)
-        {
-            return cachedSprite;
-        }
-
-        if (achievementSpriteSets != null)
-        {
-            var spriteSet = achievementSpriteSets.FirstOrDefault(s => s.achievementId == achievementId);
-            if (spriteSet != null)
-            {
-                Sprite sprite = isUnlocked ? spriteSet.unlockedSprite : spriteSet.lockedSprite;
-                if (sprite != null)
-                {
-                    AddToCache(cacheKey, sprite);
-                    return sprite;
-                }
-            }
-        }
-
-        Debug.LogWarning($"[SpriteManager] 업적 스프라이트를 찾을 수 없습니다: {achievementId}, {isUnlocked}");
-        return null;
-    }
-
-    /// <summary>
-    /// 비동기 스프라이트 로딩
-    /// </summary>
-    public IEnumerator LoadSpriteAsync(string spriteKey, System.Action<Sprite> onComplete)
-    {
-        if (!isInitialized)
-        {
-            onComplete?.Invoke(null);
-            yield break;
-        }
-
-        isLoading = true;
-        
-        // 실제 구현에서는 Resources.LoadAsync 등을 사용
-        yield return new WaitForSeconds(0.1f); // 시뮬레이션
-        
-        Sprite sprite = GetSpriteByKey(spriteKey);
-        
-        if (sprite != null)
-        {
-            OnSpriteLoadedEvent?.Invoke(spriteKey, sprite);
-            onComplete?.Invoke(sprite);
-        }
-        else
-        {
-            OnSpriteLoadFailedEvent?.Invoke(spriteKey, "스프라이트를 찾을 수 없습니다.");
-            onComplete?.Invoke(null);
-        }
-        
-        isLoading = false;
-    }
-
-    private Sprite GetSpriteByKey(string spriteKey)
-    {
-        // 키 파싱 및 적절한 스프라이트 반환
-        if (spriteKey.StartsWith("lifeStage_"))
-        {
-            if (int.TryParse(spriteKey.Split('_')[1], out int stage))
-            {
-                return GetLifeStageSprite(stage);
-            }
-        }
-        else if (spriteKey.StartsWith("map_"))
-        {
-            var parts = spriteKey.Split('_');
-            if (parts.Length >= 3)
-            {
-                if (System.Enum.TryParse<MapType>(parts[1], out MapType mapType) &&
-                    System.Enum.TryParse<MapPhase>(parts[2], out MapPhase phase))
-                {
-                    return GetMapSprite(mapType, phase);
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    /// <summary>
-    /// 캐시 초기화
-    /// </summary>
-    public void ClearCache()
-    {
-        if (!enableCaching) return;
-
-        spriteCache.Clear();
-        cacheTimestamps.Clear();
-        cacheAccessOrder.Clear();
-        
-        Debug.Log("[SpriteManager] 캐시 초기화 완료");
-    }
-
-    /// <summary>
-    /// 캐시 정보 반환
-    /// </summary>
-    public string GetCacheInfo()
-    {
-        return $"캐시 크기: {spriteCache.Count}/{maxCacheSize}, 활성화: {enableCaching}";
-    }
-
-    /// <summary>
-    /// 스프라이트 존재 여부 확인
-    /// </summary>
-    public bool HasSprite(SpriteType type, string identifier)
-    {
-        switch (type)
-        {
-            case SpriteType.LifeStage:
-                return int.TryParse(identifier, out int stage) && stage >= 0 && stage < lifeStageSprites.Length;
-            case SpriteType.Map:
-                return mapSpriteTable.ContainsKey(System.Enum.Parse<MapType>(identifier));
-            case SpriteType.UI:
-                return uiSpriteSets?.Any(s => s.spriteName == identifier) ?? false;
-            case SpriteType.Item:
-                return itemSpriteSets?.Any(s => s.itemId == identifier) ?? false;
-            case SpriteType.Achievement:
-                return achievementSpriteSets?.Any(s => s.achievementId == identifier) ?? false;
-            default:
-                return false;
-        }
-    }
-
-    /// <summary>
-    /// 사용 가능한 맵 타입 목록 반환
-    /// </summary>
-    public List<MapType> GetAvailableMapTypes()
-    {
-        return mapSpriteTable.Keys.ToList();
-    }
-
-    /// <summary>
-    /// 사용 가능한 UI 타입 목록 반환
-    /// </summary>
-    public List<UIType> GetAvailableUITypes()
-    {
-        return uiSpriteSets?.Select(s => s.uiType).Distinct().ToList() ?? new List<UIType>();
-    }
+    #region 이벤트 정리
 
     private void OnDestroy()
     {
@@ -631,11 +634,9 @@ public class SpriteManager : MonoBehaviour
         {
             StopCoroutine(cacheCleanupCoroutine);
         }
-        
-        ClearCache();
-        
-        // 이벤트 초기화
-        OnSpriteLoadedEvent = null;
-        OnSpriteLoadFailedEvent = null;
+
+        OnWormSpriteCompletedEvent = null;
     }
+
+    #endregion
 }

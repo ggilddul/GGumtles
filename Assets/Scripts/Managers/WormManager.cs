@@ -7,9 +7,9 @@ public class WormManager : MonoBehaviour
     public static WormManager Instance { get; private set; }
 
     [Header("벌레 생성 설정")]
-    [SerializeField] private bool enableAutoEvolution = true;
+    [SerializeField] private bool enableAutoEvolution = false; // 분 단위 이벤트로 대체
     [SerializeField] private bool enableAutoDeath = true;
-    [SerializeField] private float evolutionCheckInterval = 1f; // 진화 체크 간격 (초)
+    // [SerializeField] private float evolutionCheckInterval = 60f; // 미사용 (호환)
 
     [Header("디버그 설정")]
     [SerializeField] private bool enableDebugLogs = true;
@@ -40,8 +40,7 @@ public class WormManager : MonoBehaviour
 
     // 상태 관리
     private bool isInitialized = false;
-    private bool isProcessing = false;
-    private float lastEvolutionCheck = 0f;
+    private bool isSubscribedToGameTime = false;
 
     // 이벤트 정의
     public delegate void OnWormCreated(WormData worm);
@@ -67,21 +66,14 @@ public class WormManager : MonoBehaviour
         InitializeSingleton();
     }
 
-    private void Start()
+    public void Initialize()
     {
         InitializeWormSystem();
     }
 
     private void Update()
     {
-        if (!isInitialized || isProcessing) return;
-
-        // 주기적 진화 체크
-        if (enableAutoEvolution && Time.time - lastEvolutionCheck >= evolutionCheckInterval)
-        {
-            CheckEvolution();
-            lastEvolutionCheck = Time.time;
-        }
+        // 진화는 GameManager의 분 변경 이벤트에서 처리함
     }
 
     private void InitializeSingleton()
@@ -108,6 +100,8 @@ public class WormManager : MonoBehaviour
             isInitialized = true;
 
             LogDebug("[WormManager] 벌레 시스템 초기화 완료");
+            // 게임 시간 이벤트 구독 시도
+            TrySubscribeToGameTime();
         }
         catch (System.Exception ex)
         {
@@ -134,7 +128,7 @@ public class WormManager : MonoBehaviour
             {
                 foreach (var worm in savedWormList)
                 {
-                    if (worm != null && worm.IsValid)
+                    if (worm != null && worm.wormId >= 0)
                     {
                         AddWorm(worm);
                     }
@@ -175,10 +169,10 @@ public class WormManager : MonoBehaviour
 
         try
         {
-            isProcessing = true;
-
             // 새 벌레 생성
-            var newWorm = new WormData(nextWormId, GenerateRandomWormName());
+            var newWorm = new WormData();
+            newWorm.wormId = nextWormId;
+            newWorm.name = GenerateRandomWormName();
             newWorm.generation = generation;
             newWorm.lifespan = RandomManager.GenerateWormLifespan();
 
@@ -199,7 +193,7 @@ public class WormManager : MonoBehaviour
                 SetWormParents(newWorm, currentWorm);
             }
 
-            LogDebug($"[WormManager] 새 벌레 생성: {newWorm.DisplayName} (세대: {generation})");
+            LogDebug($"[WormManager] 새 벌레 생성: {newWorm.name} (세대: {generation})");
 
             // 이벤트 발생
             OnWormCreatedEvent?.Invoke(newWorm);
@@ -214,10 +208,6 @@ public class WormManager : MonoBehaviour
             Debug.LogError($"[WormManager] 벌레 생성 중 오류: {ex.Message}");
             return null;
         }
-        finally
-        {
-            isProcessing = false;
-        }
     }
 
     /// <summary>
@@ -225,7 +215,7 @@ public class WormManager : MonoBehaviour
     /// </summary>
     private void AddWorm(WormData worm)
     {
-        if (worm == null || !worm.IsValid) return;
+        if (worm == null || worm.wormId < 0) return;
 
         wormDictionary[worm.wormId] = worm;
         wormList.Add(worm);
@@ -251,7 +241,7 @@ public class WormManager : MonoBehaviour
         var previousWorm = currentWorm;
         currentWorm = worm;
 
-        LogDebug($"[WormManager] 현재 벌레 변경: {previousWorm?.DisplayName ?? "없음"} → {currentWorm.DisplayName}");
+                    LogDebug($"[WormManager] 현재 벌레 변경: {previousWorm?.name ?? "없음"} → {currentWorm.name}");
 
         // 이벤트 발생
         OnCurrentWormChangedEvent?.Invoke(previousWorm, currentWorm);
@@ -264,11 +254,12 @@ public class WormManager : MonoBehaviour
     {
         if (child == null || parent == null) return;
 
-        child.parentId1 = parent.wormId;
-        child.parentId2 = -1; // 단일 부모 (필요시 수정)
-        parent.AddChild(child.wormId);
+        // 부모-자식 관계는 단순화하여 제거
+        // child.parentId1 = parent.wormId;
+        // child.parentId2 = -1;
+        // parent.AddChild(child.wormId);
 
-        LogDebug($"[WormManager] 부모-자식 관계 설정: {parent.DisplayName} → {child.DisplayName}");
+                    LogDebug($"[WormManager] 부모-자식 관계 설정: {parent.name} → {child.name}");
     }
 
     /// <summary>
@@ -276,31 +267,103 @@ public class WormManager : MonoBehaviour
     /// </summary>
     public void CheckEvolution()
     {
-        if (currentWorm == null || !currentWorm.IsAlive) return;
+        // 하위 호환: 분 증가 없이 단계만 재평가
+        IncrementAgeAndEvaluate(0);
+    }
+
+    private void IncrementAgeAndEvaluate(int minutes)
+    {
+        if (currentWorm == null || !currentWorm.isAlive) return;
 
         try
         {
             int previousStage = currentWorm.lifeStage;
-            
-            // 나이 증가 (1분)
-            currentWorm.AgeUp(1);
+            if (previousStage == 6) return;
 
-            // 생명주기 변경 확인
-            if (currentWorm.lifeStage != previousStage)
+            if (minutes > 0)
             {
-                HandleWormEvolved(currentWorm, previousStage, currentWorm.lifeStage);
+                currentWorm.age += minutes;
             }
 
-            // 사망 확인
-            if (currentWorm.IsDead)
+            // 수명 보정 및 고정 임계값 기반 단계 계산
+            int lifespan = Mathf.Max(1, currentWorm.lifespan);
+            int age = Mathf.Max(0, currentWorm.age);
+
+            // 진화 임계값(분): 0(Egg) → 1:30 → 2:120 → 3:360 → 4:720 → 5:1440 → 6:수명
+            int newStage = 0;
+            if (age >= lifespan)
             {
-                HandleWormDied(currentWorm, "자연사");
+                newStage = 6; // 사망
+            }
+            else if (age >= 1440)
+            {
+                newStage = 5;
+            }
+            else if (age >= 720)
+            {
+                newStage = 4;
+            }
+            else if (age >= 360)
+            {
+                newStage = 3;
+            }
+            else if (age >= 120)
+            {
+                newStage = 2;
+            }
+            else if (age >= 30)
+            {
+                newStage = 1;
+            }
+
+            if (newStage != previousStage)
+            {
+                currentWorm.lifeStage = newStage;
+
+                if (newStage == 6)
+                {
+                    currentWorm.isAlive = false;
+                    HandleWormDied(currentWorm, "자연사");
+                }
+                else
+                {
+                    HandleWormEvolved(currentWorm, previousStage, newStage);
+                }
             }
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[WormManager] 진화 체크 중 오류: {ex.Message}");
+            Debug.LogError($"[WormManager] 단계 평가 중 오류: {ex.Message}");
         }
+    }
+
+    private void TrySubscribeToGameTime()
+    {
+        if (isSubscribedToGameTime) return;
+        if (GameManager.Instance == null)
+        {
+            StartCoroutine(WaitAndSubscribeGameTime());
+            return;
+        }
+
+        GameManager.Instance.OnGameTimeChangedEvent += OnGameTimeChanged;
+        isSubscribedToGameTime = true;
+    }
+
+    private System.Collections.IEnumerator WaitAndSubscribeGameTime()
+    {
+        while (GameManager.Instance == null)
+        {
+            yield return null;
+        }
+        GameManager.Instance.OnGameTimeChangedEvent += OnGameTimeChanged;
+        isSubscribedToGameTime = true;
+    }
+
+    private void OnGameTimeChanged(int hour, int minute, string ampm)
+    {
+        // 분 변경 이벤트마다 1분 증가로 가정 (GameManager에서 분 변화 시 호출됨)
+        IncrementAgeAndEvaluate(1);
     }
 
     /// <summary>
@@ -308,7 +371,7 @@ public class WormManager : MonoBehaviour
     /// </summary>
     private void HandleWormEvolved(WormData worm, int fromStage, int toStage)
     {
-        LogDebug($"[WormManager] 벌레 진화: {worm.DisplayName} ({fromStage} → {toStage})");
+                    LogDebug($"[WormManager] 벌레 진화: {worm.name} ({fromStage} → {toStage})");
 
         // 이벤트 발생
         OnWormEvolvedEvent?.Invoke(worm, fromStage, toStage);
@@ -328,7 +391,7 @@ public class WormManager : MonoBehaviour
     /// </summary>
     private void HandleWormDied(WormData worm, string reason)
     {
-        LogDebug($"[WormManager] 벌레 사망: {worm.DisplayName} (사유: {reason})");
+                    LogDebug($"[WormManager] 벌레 사망: {worm.name} (사유: {reason})");
 
         // 이벤트 발생
         OnWormDiedEvent?.Invoke(worm, reason);
@@ -380,7 +443,7 @@ public class WormManager : MonoBehaviour
     /// </summary>
     public List<WormData> GetAliveWorms()
     {
-        return wormList.Where(w => w.IsAlive).ToList();
+        return wormList.Where(w => w.isAlive).ToList();
     }
 
     /// <summary>
@@ -402,7 +465,7 @@ public class WormManager : MonoBehaviour
             SetCurrentWorm(wormList.LastOrDefault());
         }
 
-        LogDebug($"[WormManager] 벌레 제거: {worm.DisplayName}");
+                    LogDebug($"[WormManager] 벌레 제거: {worm.name}");
 
         return true;
     }
@@ -449,17 +512,45 @@ public class WormManager : MonoBehaviour
         stats.AppendLine($"[벌레 통계]");
         stats.AppendLine($"총 벌레 수: {TotalWorms}마리");
         stats.AppendLine($"살아있는 벌레: {GetAliveWorms().Count}마리");
-        stats.AppendLine($"현재 벌레: {currentWorm?.DisplayName ?? "없음"}");
+        stats.AppendLine($"현재 벌레: {currentWorm?.name ?? "없음"}");
         
         if (currentWorm != null)
         {
             stats.AppendLine($"현재 세대: {currentWorm.generation}");
             stats.AppendLine($"현재 생명주기: {currentWorm.lifeStage}/6");
-            stats.AppendLine($"나이: {currentWorm.AgeInDays:F1}일");
+            stats.AppendLine($"나이: {currentWorm.age / 1440f:F1}일");
             stats.AppendLine($"수명: {currentWorm.lifespan / 1440f:F1}일");
         }
 
         return stats.ToString();
+    }
+
+    /// <summary>
+    /// 현재 웜에게 먹이주기
+    /// </summary>
+    public void FeedWorm()
+    {
+        if (currentWorm == null)
+        {
+            Debug.LogWarning("[WormManager] 현재 웜이 없습니다.");
+            return;
+        }
+
+        try
+        {
+            // 웜의 통계 업데이트
+            currentWorm.statistics.totalEatCount++;
+            
+            // 사운드 재생
+            AudioManager.Instance?.PlaySFX(AudioManager.SFXType.EarnItem);
+            
+            if (enableDebugLogs)
+                Debug.Log($"[WormManager] 웜 먹이주기 완료: {currentWorm.name}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormManager] 웜 먹이주기 중 오류: {ex.Message}");
+        }
     }
 
     private void LogDebug(string message)
@@ -477,6 +568,12 @@ public class WormManager : MonoBehaviour
         OnWormEvolvedEvent = null;
         OnWormDiedEvent = null;
         OnCurrentWormChangedEvent = null;
+
+        if (isSubscribedToGameTime && GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameTimeChangedEvent -= OnGameTimeChanged;
+            isSubscribedToGameTime = false;
+        }
     }
 }
 

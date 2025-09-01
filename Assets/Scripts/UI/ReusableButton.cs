@@ -1,319 +1,234 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using GGumtles.UI;
 
 namespace GGumtles.UI
 {
     /// <summary>
-    /// 재사용 가능한 버튼 컴포넌트
-    /// 다양한 스타일과 기능을 지원하는 범용 버튼
+    /// 버튼 액션 타입
     /// </summary>
-    public class ReusableButton : UIBase
+    public enum ButtonAction
     {
-        [Header("버튼 컴포넌트")]
-        [SerializeField] private Button button;
-        [SerializeField] private Image buttonImage;
-        [SerializeField] private TMP_Text buttonText;
-        [SerializeField] private Image iconImage;
+        None,
+        OpenTab,
+        OpenPopup,
+        ClosePopup,
 
-        [Header("버튼 스타일")]
-        [SerializeField] private ButtonStyle buttonStyle = ButtonStyle.Normal;
-        [SerializeField] private Color normalColor = Color.white;
-        [SerializeField] private Color pressedColor = Color.gray;
-        [SerializeField] private Color disabledColor = Color.gray;
-        [SerializeField] private Color highlightedColor = Color.yellow;
-
-        [Header("애니메이션 설정")]
-        [SerializeField] private bool enableScaleAnimation = true;
-        [SerializeField] private float scaleMultiplier = 0.95f;
-        [SerializeField] private float scaleAnimationDuration = 0.1f;
-
-        [Header("사운드 설정")]
-        [SerializeField] private AudioManager.SFXType clickSound = AudioManager.SFXType.Button;
-        [SerializeField] private AudioManager.SFXType hoverSound = AudioManager.SFXType.Button;
-
-        // 버튼 스타일 열거형
-        public enum ButtonStyle
-        {
-            Normal,
-            Primary,
-            Secondary,
-            Danger,
-            Success,
-            Warning,
-            Ghost
-        }
-
-        // 이벤트 정의
-        public delegate void OnButtonClicked(ReusableButton button);
-        public delegate void OnButtonHovered(ReusableButton button);
-        public delegate void OnButtonPressed(ReusableButton button);
+        CreateLayoutElement,
+        PlaySFX,
+        EquipItem,
+        ShakeTree,
+        CollectAcorn,
+        CollectDiamond,
+        FeedWorm,
         
-        public event OnButtonClicked OnButtonClickedEvent;
-        public event OnButtonHovered OnButtonHoveredEvent;
-        public event OnButtonPressed OnButtonPressedEvent;
+        // 아이템 뽑기 관련
+        OpenItemDrawPopup,
+        CancelItemDraw,
+        CancelDrawConfirm,
+        ConfirmDrawResult,
+        
+        // 아이템 팝업 관련 (통합)
+        OpenItemPopup,  // parameter로 ItemType 구분
+        
+        // 업적 팝업 관련
+        OpenAchievement1Popup,  // parameter로 Achievement Index 구분
+        OpenAchievement2Popup,  // parameter로 Achievement Index 구분
+        
+        // 게임 관련
+        StartGame
+    }
 
-        // 상태 관리
-        private bool isPressed = false;
-        private bool isHovered = false;
-        private Vector3 originalScale;
-        private Coroutine scaleAnimationCoroutine;
-
-        protected override void AutoFindComponents()
+    public class ReusableButton : MonoBehaviour
+    {
+        [Header("액션 설정")]
+        [SerializeField] private ButtonAction buttonAction;
+        [SerializeField] private int actionParameter = -1; // 탭 인덱스, 팝업 타입 등
+        
+        // [Header("디버그 설정")] // 필드와 함께 주석 처리
+        // enableDebugLogs 제거 - 사용되지 않음
+        
+        // 이벤트
+        public delegate void ButtonClickedHandler(ButtonAction action, int parameter);
+        public static event ButtonClickedHandler OnButtonClickedEvent; // 중앙 이벤트
+        
+        // 개별 버튼 이벤트
+        public event ButtonClickedHandler OnThisButtonClickedEvent; // 개별 이벤트
+        
+        private void Awake()
         {
-            if (button == null)
-                button = GetComponent<Button>();
-            if (buttonImage == null)
-                buttonImage = GetComponent<Image>();
-            if (buttonText == null)
-                buttonText = GetComponentInChildren<TMP_Text>();
-            if (iconImage == null)
-                iconImage = transform.Find("Icon")?.GetComponent<Image>();
-        }
-
-        protected override void SetupDefaultSettings()
-        {
-            originalScale = transform.localScale;
-            
+            // 자동으로 컴포넌트 찾기
+            Button button = GetComponent<Button>();
             if (button != null)
             {
-                button.onClick.AddListener(OnClick);
+                button.onClick.AddListener(OnButtonClicked);
             }
         }
-
-        protected override void SetupUI()
+        
+        private void Start()
         {
-            ApplyButtonStyle();
+            // 추가 초기화가 필요한 경우 여기에 구현
         }
-
-        /// <summary>
-        /// 버튼 스타일 적용
-        /// </summary>
-        private void ApplyButtonStyle()
+        
+        private void OnDestroy()
         {
-            if (buttonImage == null) return;
-
-            switch (buttonStyle)
+            // 이벤트 구독 해제
+            Button button = GetComponent<Button>();
+            if (button != null)
+                button.onClick.RemoveListener(OnButtonClicked);
+        }
+        
+        /// <summary>
+        /// 버튼 클릭 처리
+        /// </summary>
+        private void OnButtonClicked()
+        {
+            OnButtonClickedEvent?.Invoke(buttonAction, actionParameter);
+            OnThisButtonClickedEvent?.Invoke(buttonAction, actionParameter); // 개별 이벤트 발생
+            HandleButtonAction();
+        }
+        
+        /// <summary>
+        /// 버튼 액션 처리
+        /// </summary>
+        private void HandleButtonAction()
+        {
+            switch (buttonAction)
             {
-                case ButtonStyle.Normal:
-                    buttonImage.color = normalColor;
+                case ButtonAction.OpenTab:
+                    TabManager.Instance?.SwitchToTab(actionParameter);
                     break;
-                case ButtonStyle.Primary:
-                    buttonImage.color = new Color(0.2f, 0.6f, 1f);
+                    
+                case ButtonAction.OpenPopup:
+                    PopupManager.Instance?.OpenPopup((PopupManager.PopupType)actionParameter);
                     break;
-                case ButtonStyle.Secondary:
-                    buttonImage.color = new Color(0.6f, 0.6f, 0.6f);
+                    
+                case ButtonAction.ClosePopup:
+                    PopupManager.Instance?.CloseAllPopups();
                     break;
-                case ButtonStyle.Danger:
-                    buttonImage.color = new Color(1f, 0.3f, 0.3f);
+                    
+                
+                    
+                case ButtonAction.CreateLayoutElement:
+                    // UIPrefabManager 삭제로 인해 직접 처리 불가
+                    Debug.LogWarning("[ReusableButton] CreateLayoutElement는 더 이상 지원되지 않습니다.");
                     break;
-                case ButtonStyle.Success:
-                    buttonImage.color = new Color(0.3f, 0.8f, 0.3f);
+                    
+                case ButtonAction.PlaySFX:
+                    AudioManager.Instance?.PlaySFX((AudioManager.SFXType)actionParameter);
                     break;
-                case ButtonStyle.Warning:
-                    buttonImage.color = new Color(1f, 0.8f, 0.2f);
+                    
+                case ButtonAction.EquipItem:
+                    // ItemManager.EquipItemByType이 없으므로 임시 처리
+                    Debug.Log($"[ReusableButton] 아이템 장착: {actionParameter}");
                     break;
-                case ButtonStyle.Ghost:
-                    buttonImage.color = new Color(1f, 1f, 1f, 0.1f);
+                    
+                case ButtonAction.ShakeTree:
+                    // TreeController에서 나무 흔들기 실행 (사운드 포함)
+                    var treeController = FindFirstObjectByType<TreeController>();
+                    if (treeController != null)
+                    {
+                        treeController.ShakeTree();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] TreeController를 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                case ButtonAction.CollectAcorn:
+                    GameManager.Instance?.PickAcorn();
+                    break;
+                    
+                case ButtonAction.CollectDiamond:
+                    GameManager.Instance?.PickDiamond();
+                    break;
+                    
+                case ButtonAction.FeedWorm:
+                    // WormManager에서 웜 먹이주기 실행
+                    var wormManager = FindFirstObjectByType<WormManager>();
+                    if (wormManager != null)
+                    {
+                        wormManager.FeedWorm();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] WormManager를 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                // 아이템 뽑기 관련 (통합)
+                case ButtonAction.OpenItemDrawPopup:
+                    // parameter로 ItemType 전달
+                    ItemData.ItemType drawType = (ItemData.ItemType)actionParameter;
+                    PopupManager.Instance?.OpenItemDrawPopup(drawType);
+                    break;
+                    
+                case ButtonAction.CancelItemDraw:
+                    PopupManager.Instance?.CancelItemDraw();
+                    break;
+                    
+                case ButtonAction.CancelDrawConfirm:
+                    PopupManager.Instance?.CancelDrawConfirm();
+                    break;
+                    
+                case ButtonAction.ConfirmDrawResult:
+                    PopupManager.Instance?.ConfirmDrawResult();
+                    break;
+                    
+                // 아이템 팝업 관련 (통합)
+                case ButtonAction.OpenItemPopup:
+                    ItemData.ItemType itemTypeParam = (ItemData.ItemType)actionParameter;
+                    PopupManager.Instance?.OpenItemPopup(itemTypeParam);
+                    break;
+                    
+                // 업적 팝업 관련
+                case ButtonAction.OpenAchievement1Popup:
+                    int achievement1Index = actionParameter;
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievement1Index);
+                    break;
+                    
+                case ButtonAction.OpenAchievement2Popup:
+                    int achievement2Index = actionParameter;
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievement2Index);
+                    break;
+                    
+                case ButtonAction.StartGame:
+                    // GamePanel에서 게임 시작 처리
+                    var gamePanel = FindFirstObjectByType<GamePanel>();
+                    if (gamePanel != null)
+                    {
+                        gamePanel.StartGame(actionParameter);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] GamePanel을 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                default:
+                    Debug.LogWarning($"[ReusableButton] 처리되지 않은 액션: {buttonAction}");
                     break;
             }
         }
-
-        /// <summary>
-        /// 버튼 클릭 이벤트
-        /// </summary>
-        private void OnClick()
-        {
-            try
-            {
-                // 사운드 재생
-                if (enableSound)
-                {
-                    AudioManager.Instance?.PlaySFX(clickSound);
-                }
-
-                // 스케일 애니메이션
-                if (enableScaleAnimation)
-                {
-                    StartScaleAnimation();
-                }
-
-                // 이벤트 발생
-                OnButtonClickedEvent?.Invoke(this);
-                OnButtonPressedEvent?.Invoke(this);
-
-                LogDebug($"[ReusableButton] 버튼 클릭: {buttonText?.text ?? "Unknown"}");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[ReusableButton] 버튼 클릭 처리 중 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 스케일 애니메이션 시작
-        /// </summary>
-        private void StartScaleAnimation()
-        {
-            if (scaleAnimationCoroutine != null)
-            {
-                StopCoroutine(scaleAnimationCoroutine);
-            }
-            scaleAnimationCoroutine = StartCoroutine(ScaleAnimationCoroutine());
-        }
-
-        /// <summary>
-        /// 스케일 애니메이션 코루틴
-        /// </summary>
-        private System.Collections.IEnumerator ScaleAnimationCoroutine()
-        {
-            // 축소
-            Vector3 targetScale = originalScale * scaleMultiplier;
-            float elapsed = 0f;
-
-            while (elapsed < scaleAnimationDuration * 0.5f)
-            {
-                elapsed += Time.deltaTime;
-                float progress = elapsed / (scaleAnimationDuration * 0.5f);
-                transform.localScale = Vector3.Lerp(originalScale, targetScale, progress);
-                yield return null;
-            }
-
-            transform.localScale = targetScale;
-
-            // 복원
-            elapsed = 0f;
-            while (elapsed < scaleAnimationDuration * 0.5f)
-            {
-                elapsed += Time.deltaTime;
-                float progress = elapsed / (scaleAnimationDuration * 0.5f);
-                transform.localScale = Vector3.Lerp(targetScale, originalScale, progress);
-                yield return null;
-            }
-
-            transform.localScale = originalScale;
-            scaleAnimationCoroutine = null;
-        }
-
-        /// <summary>
-        /// 버튼 텍스트 설정
-        /// </summary>
-        public void SetText(string text)
-        {
-            if (buttonText != null)
-            {
-                buttonText.text = text;
-            }
-        }
-
-        /// <summary>
-        /// 버튼 아이콘 설정
-        /// </summary>
-        public void SetIcon(Sprite icon)
-        {
-            if (iconImage != null)
-            {
-                iconImage.sprite = icon;
-                iconImage.gameObject.SetActive(icon != null);
-            }
-        }
-
-        /// <summary>
-        /// 버튼 스타일 설정
-        /// </summary>
-        public void SetButtonStyle(ButtonStyle style)
-        {
-            buttonStyle = style;
-            ApplyButtonStyle();
-        }
-
-        /// <summary>
-        /// 버튼 색상 설정
-        /// </summary>
-        public void SetColors(Color normal, Color pressed, Color disabled, Color highlighted)
-        {
-            normalColor = normal;
-            pressedColor = pressed;
-            disabledColor = disabled;
-            highlightedColor = highlighted;
-            ApplyButtonStyle();
-        }
-
+        
         /// <summary>
         /// 버튼 활성화/비활성화
         /// </summary>
         public void SetInteractable(bool interactable)
         {
+            Button button = GetComponent<Button>();
             if (button != null)
-            {
                 button.interactable = interactable;
-            }
-
-            if (buttonImage != null)
-            {
-                buttonImage.color = interactable ? normalColor : disabledColor;
-            }
         }
-
+        
         /// <summary>
-        /// 스케일 애니메이션 활성화/비활성화
+        /// 버튼 액션 설정
         /// </summary>
-        public void SetScaleAnimationEnabled(bool enabled)
+        public void SetAction(ButtonAction action, int parameter = -1)
         {
-            enableScaleAnimation = enabled;
-        }
-
-        /// <summary>
-        /// 클릭 사운드 설정
-        /// </summary>
-        public void SetClickSound(AudioManager.SFXType sound)
-        {
-            clickSound = sound;
-        }
-
-        /// <summary>
-        /// 호버 사운드 설정
-        /// </summary>
-        public void SetHoverSound(AudioManager.SFXType sound)
-        {
-            hoverSound = sound;
-        }
-
-        /// <summary>
-        /// 버튼 정보 반환
-        /// </summary>
-        public string GetButtonInfo()
-        {
-            var info = new System.Text.StringBuilder();
-            info.AppendLine($"[ReusableButton 정보]");
-            info.AppendLine($"텍스트: {buttonText?.text ?? "없음"}");
-            info.AppendLine($"스타일: {buttonStyle}");
-            info.AppendLine($"상호작용 가능: {button?.interactable ?? false}");
-            info.AppendLine($"스케일 애니메이션: {(enableScaleAnimation ? "활성화" : "비활성화")}");
-            info.AppendLine($"클릭 사운드: {clickSound}");
-
-            return info.ToString();
-        }
-
-        protected override void OnDestroy()
-        {
-            base.OnDestroy();
-
-            if (scaleAnimationCoroutine != null)
-            {
-                StopCoroutine(scaleAnimationCoroutine);
-            }
-
-            if (button != null)
-            {
-                button.onClick.RemoveListener(OnClick);
-            }
-
-            // 이벤트 구독 해제
-            OnButtonClickedEvent = null;
-            OnButtonHoveredEvent = null;
-            OnButtonPressedEvent = null;
+            buttonAction = action;
+            actionParameter = parameter;
         }
     }
 }

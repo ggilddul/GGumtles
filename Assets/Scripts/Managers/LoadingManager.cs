@@ -16,7 +16,8 @@ public class LoadingManager : MonoBehaviour
     public TMP_Text mapLoadingInfoText;
 
     // 상수 분리
-    private const float DEFAULT_FADE_DURATION = 1f;
+    private const float DEFAULT_FADE_DURATION = 2.0f; // fade out 시간을 2초로 조정
+    private const float MINIMUM_LOADING_TIME = 2.0f; // 최소 로딩 시간 2초
     private const float INITIAL_ALPHA = 0f;
     private const float TARGET_ALPHA = 1f;
     private const float FADE_OUT_TARGET_ALPHA = 0f;
@@ -30,6 +31,7 @@ public class LoadingManager : MonoBehaviour
 
     private Coroutine fadeCoroutine;
     private bool isInitialized = false;
+    private float loadingStartTime; // 로딩 시작 시간
 
     public enum LoadingType
     {
@@ -59,8 +61,12 @@ public class LoadingManager : MonoBehaviour
     private void InitializeLoadingManager()
     {
         ValidateComponents();
+        loadingStartTime = Time.realtimeSinceStartup; // 더 정확한 시간 측정
+        Debug.Log($"[LoadingManager] 로딩 시작 - 시간: {loadingStartTime:F3}");
+        
         ShowLoading(LoadingType.Logo);
         StartCoroutine(SubscribeToGameSaveManager());
+        isInitialized = true;
     }
 
     private void ValidateComponents()
@@ -90,15 +96,124 @@ public class LoadingManager : MonoBehaviour
 
     private void OnGameSaveDataLoaded()
     {
-        Debug.Log("[LoadingManager] 세이브 데이터 로드 완료 이벤트 수신");
+        float currentTime = Time.realtimeSinceStartup;
+        float elapsedTime = currentTime - loadingStartTime;
+        
+        Debug.Log($"[LoadingManager] 세이브 데이터 로드 완료 이벤트 수신 - 경과 시간: {elapsedTime:F3}초");
+        
+        // 다른 매니저들 초기화
+        InitializeOtherManagers();
         
         if (GameManager.Instance != null)
         {
+            // GameManager 초기화 완료 이벤트 구독
+            GameManager.Instance.OnGameInitializedEvent -= OnGameInitialized;
+            GameManager.Instance.OnGameInitializedEvent += OnGameInitialized;
+            
             GameManager.Instance.Initialize();
+            Debug.Log("[LoadingManager] GameManager 초기화 시작");
         }
         else
         {
             Debug.LogError("[LoadingManager] GameManager.Instance가 null입니다.");
+            // GameManager가 없어도 로딩은 종료
+            HideLoading(LoadingType.Logo);
+        }
+    }
+
+    private void OnGameInitialized()
+    {
+        float currentTime = Time.realtimeSinceStartup;
+        float elapsedTime = currentTime - loadingStartTime;
+        
+        Debug.Log($"[LoadingManager] GameManager 초기화 완료 이벤트 수신 - 경과 시간: {elapsedTime:F3}초");
+        
+        // GameManager 이벤트 구독 해제
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameInitializedEvent -= OnGameInitialized;
+        }
+        
+        // 최소 로딩 시간 보장
+        StartCoroutine(EnsureMinimumLoadingTime());
+    }
+
+    private IEnumerator EnsureMinimumLoadingTime()
+    {
+        float currentTime = Time.realtimeSinceStartup;
+        float elapsedTime = currentTime - loadingStartTime;
+        
+        if (elapsedTime < MINIMUM_LOADING_TIME)
+        {
+            float remainingTime = MINIMUM_LOADING_TIME - elapsedTime;
+            Debug.Log($"[LoadingManager] 최소 로딩 시간 보장 - 추가 대기: {remainingTime:F3}초");
+            yield return new WaitForSeconds(remainingTime);
+        }
+        
+        // 로딩 화면 숨기기
+        HideLoading(LoadingType.Logo);
+    }
+
+    private void InitializeOtherManagers()
+    {
+        // AudioManager 초기화
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.Initialize();
+        }
+
+        // WormManager 초기화
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.Initialize();
+        }
+
+        // ItemManager 초기화
+        if (ItemManager.Instance != null)
+        {
+            ItemManager.Instance.Initialize();
+        }
+
+        // AchievementManager 초기화
+        if (AchievementManager.Instance != null)
+        {
+            AchievementManager.Instance.Initialize();
+        }
+
+        // MapManager 초기화
+        if (MapManager.Instance != null)
+        {
+            MapManager.Instance.Initialize();
+        }
+
+        // WormFamilyManager 초기화
+        if (WormFamilyManager.Instance != null)
+        {
+            WormFamilyManager.Instance.Initialize();
+        }
+
+        // TabManager 초기화
+        if (TabManager.Instance != null)
+        {
+            TabManager.Instance.Initialize();
+        }
+
+        // BottomBarManager 초기화
+        if (BottomBarManager.Instance != null)
+        {
+            BottomBarManager.Instance.Initialize();
+        }
+
+        // TopBarManager 초기화
+        if (TopBarManager.Instance != null)
+        {
+            TopBarManager.Instance.Initialize();
+        }
+
+        // PopupManager 초기화
+        if (PopupManager.Instance != null)
+        {
+            PopupManager.Instance.Initialize();
         }
     }
 
@@ -106,7 +221,8 @@ public class LoadingManager : MonoBehaviour
     {
         if (!isInitialized)
         {
-            Debug.LogWarning("[LoadingManager] 아직 초기화되지 않았습니다.");
+            Debug.Log("[LoadingManager] 아직 초기화되지 않았습니다. 초기화를 기다립니다.");
+            StartCoroutine(WaitForInitializationAndShowLoading(type));
             return;
         }
 
@@ -117,8 +233,20 @@ public class LoadingManager : MonoBehaviour
         }
     }
 
+    private IEnumerator WaitForInitializationAndShowLoading(LoadingType type)
+    {
+        yield return new WaitUntil(() => isInitialized);
+        ShowLoading(type);
+    }
+
     public void HideLoading(LoadingType type, float fadeDuration = DEFAULT_FADE_DURATION)
     {
+        float currentTime = Time.realtimeSinceStartup;
+        float elapsedTime = currentTime - loadingStartTime;
+        
+        Debug.Log($"[LoadingManager] HideLoading 호출됨 - 타입: {type}, 초기화됨: {isInitialized}");
+        Debug.Log($"[LoadingManager] 로딩 완료 시간 측정 - 경과 시간: {elapsedTime:F3}초");
+        
         if (!isInitialized)
         {
             Debug.LogWarning("[LoadingManager] 아직 초기화되지 않았습니다.");
@@ -126,9 +254,16 @@ public class LoadingManager : MonoBehaviour
         }
 
         var (canvasGroup, _) = GetLoadingComponents(type);
+        Debug.Log($"[LoadingManager] CanvasGroup 찾음: {canvasGroup != null}");
+        
         if (canvasGroup != null)
         {
+            Debug.Log($"[LoadingManager] FadeOut 시작 - 현재 알파: {canvasGroup.alpha}");
             StartFadeOut(canvasGroup, fadeDuration);
+        }
+        else
+        {
+            Debug.LogError($"[LoadingManager] CanvasGroup을 찾을 수 없습니다 - 타입: {type}");
         }
     }
 
@@ -201,8 +336,14 @@ public class LoadingManager : MonoBehaviour
 
     private IEnumerator FadeOutLoading(CanvasGroup canvasGroup, float duration)
     {
-        if (canvasGroup == null) yield break;
+        if (canvasGroup == null) 
+        {
+            Debug.LogError("[LoadingManager] FadeOutLoading: CanvasGroup이 null입니다.");
+            yield break;
+        }
 
+        Debug.Log($"[LoadingManager] FadeOutLoading 시작 - 시작 알파: {canvasGroup.alpha}, 목표 알파: {FADE_OUT_TARGET_ALPHA}");
+        
         float startAlpha = canvasGroup.alpha;
         float time = 0f;
 
@@ -210,12 +351,18 @@ public class LoadingManager : MonoBehaviour
         {
             time += Time.deltaTime;
             float normalizedTime = time / duration;
-            canvasGroup.alpha = Mathf.Lerp(startAlpha, FADE_OUT_TARGET_ALPHA, normalizedTime);
+            
+            // Easing 효과 추가 (부드러운 fade out)
+            float easedTime = 1f - Mathf.Pow(1f - normalizedTime, 3f); // Ease Out Cubic
+            canvasGroup.alpha = Mathf.Lerp(startAlpha, FADE_OUT_TARGET_ALPHA, easedTime);
+            
             yield return null;
         }
 
         canvasGroup.alpha = FADE_OUT_TARGET_ALPHA;
         canvasGroup.gameObject.SetActive(false);
+        
+        Debug.Log($"[LoadingManager] FadeOutLoading 완료 - 최종 알파: {canvasGroup.alpha}");
     }
 
     private void OnDestroy()
@@ -223,6 +370,11 @@ public class LoadingManager : MonoBehaviour
         if (GameSaveManager.Instance != null)
         {
             GameSaveManager.Instance.OnGameSaveDataLoadedEvent -= OnGameSaveDataLoaded;
+        }
+        
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameInitializedEvent -= OnGameInitialized;
         }
     }
 }

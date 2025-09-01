@@ -9,10 +9,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c9e3aa7a967524d95a59c614d5bf3bf7, type: 3}
+  m_Script: {fileID: 11500000, guid: ea23543ea45aa4d1da7d3ada0be6e850, type: 3}
   m_Name: Ach_03
   m_EditorClassIdentifier: 
-  id: Ach_03
-  title: "\uC900\uBE44 \uC644\uB8CC"
-  description: "\uAFC8\uD2C0\uC774 \uD558\uB098\uB97C \uC131\uCCB4\uB85C \uD0A4\uC6CC\uBCF4\uC138\uC694!"
-  icon: {fileID: 21300000, guid: aedd1f21d7a754a86b17c94867c99b7e, type: 3}
+  achievementId: 3
+  achievementTitle: "\uC131\uC7A5 \uC644\uB8CC"
+  achievementDescription: "\uC131\uCCB4\uB85C \uC9C4\uD654\uD558\uC138\uC694!"
+  conditionType: 2
+  targetValue: 2760
+  rewardType: 0
+  rewardAmount: 1
+  achievementIcon: {fileID: 0}
+  achievementColor: {r: 1, g: 1, b: 1, a: 1}
+  isUnlocked: 0

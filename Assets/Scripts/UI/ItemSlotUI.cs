@@ -1,64 +1,32 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System.Collections;
+using System.Collections.Generic;
 
 public class ItemSlotUI : MonoBehaviour
 {
-    [Header("UI 요소")]
-    [SerializeField] private Image itemImage;           // 아이템 이미지
-    [SerializeField] private TMP_Text itemNameText;     // 아이템 이름
-    [SerializeField] private TMP_Text rarityText;       // 희귀도 텍스트
-    [SerializeField] private Image rarityBorder;        // 희귀도 테두리
-    [SerializeField] private GameObject equippedIcon;   // 착용 중 아이콘
-    [SerializeField] private GameObject selectedIcon;   // 선택됨 아이콘
-    [SerializeField] private Button slotButton;         // 슬롯 버튼
-    [SerializeField] private Image backgroundImage;     // 배경 이미지
-
-    [Header("애니메이션")]
-    [SerializeField] private CanvasGroup canvasGroup;   // 페이드 애니메이션용
-    [SerializeField] private RectTransform slotRect;    // 크기 애니메이션용
-    [SerializeField] private bool enableAnimations = true;
-    [SerializeField] private float clickAnimationDuration = 0.1f;
-    [SerializeField] private float selectAnimationDuration = 0.2f;
-    [SerializeField] private AnimationCurve clickCurve = AnimationCurve.EaseInOut(0, 1, 1, 0.8f);
-    [SerializeField] private AnimationCurve selectCurve = AnimationCurve.EaseInOut(0, 1, 1, 1.1f);
-
-    [Header("색상 설정")]
-    [SerializeField] private Color normalColor = Color.white;
-    [SerializeField] private Color selectedColor = Color.yellow;
-    [SerializeField] private Color equippedColor = Color.green;
-    [SerializeField] private Color disabledColor = Color.gray;
-
-    [Header("사운드")]
-    [SerializeField] private bool enableSound = true;
-    [SerializeField] private AudioManager.SFXType clickSound = AudioManager.SFXType.Button;
-    // [SerializeField] private AudioManager.SFXType selectSound = AudioManager.SFXType.Button;  // 미사용
-
+    [Header("Content")]
+    [SerializeField] private Transform contentTransform;  // 아이템 버튼들이 생성될 부모 Transform
+    
+    [Header("ItemButton 프리팹")]
+    [SerializeField] private GameObject itemButtonPrefab;  // ItemButton 프리팹
+    
+    [Header("현재 착용 아이템 설명")]
+    [SerializeField] private GameObject itemDescObject;   // 현재 착용 아이템 설명 오브젝트
+    [SerializeField] private TMP_Text itemDescNameText;    // 착용 아이템 이름 텍스트
+    [SerializeField] private TMP_Text itemDescText;        // 착용 아이템 설명 텍스트
+    
     [Header("디버그")]
     [SerializeField] private bool enableDebugLogs = false;
 
     // 데이터 및 상태
-    private ItemData itemData;                          // 아이템 데이터
-    private ItemData.ItemType itemType;                          // 아이템 타입
-    private bool isSelected = false;                    // 선택됨 상태
-    private bool isEquipped = false;                    // 착용됨 상태
-    private bool isInteractable = true;                 // 상호작용 가능 상태
-    
-    // 애니메이션 상태
-    private Coroutine clickAnimationCoroutine;
-    private Coroutine selectAnimationCoroutine;
-
-    // 프로퍼티
-    public ItemData ItemData => itemData;
-    public ItemData.ItemType ItemType => itemType;
-    public bool IsSelected => isSelected;
-    public bool IsEquipped => isEquipped;
-    public bool IsInteractable => isInteractable;
+    private ItemData.ItemType currentItemType;            // 현재 표시 중인 아이템 타입
+    private List<ItemButton> itemButtons;                 // 생성된 아이템 버튼들
+    private ItemButton selectedItemButton;               // 현재 선택된 아이템 버튼
 
     // 이벤트 정의
-    public delegate void OnItemClicked(ItemSlotUI slot);
-    public event OnItemClicked OnItemClickedEvent;
+    public delegate void OnItemSelected(ItemData itemData, ItemData.ItemType itemType);
+    public event OnItemSelected OnItemSelectedEvent;
 
     private void Awake()
     {
@@ -69,31 +37,29 @@ public class ItemSlotUI : MonoBehaviour
     {
         try
         {
-            // CanvasGroup 자동 찾기
-            if (canvasGroup == null)
-                canvasGroup = GetComponent<CanvasGroup>();
-            
-            if (canvasGroup == null)
-                canvasGroup = gameObject.AddComponent<CanvasGroup>();
+            // Content Transform 자동 찾기
+            if (contentTransform == null)
+                contentTransform = transform.Find("Content");
 
-            // RectTransform 자동 찾기
-            if (slotRect == null)
-                slotRect = GetComponent<RectTransform>();
+            if (contentTransform == null)
+            {
+                Debug.LogError("[ItemSlotUI] Content Transform을 찾을 수 없습니다.");
+                return;
+            }
 
-            // Button 자동 찾기
-            if (slotButton == null)
-                slotButton = GetComponent<Button>();
-            
-            if (slotButton == null)
-                slotButton = gameObject.AddComponent<Button>();
+            // ItemDescObject 자동 찾기
+            if (itemDescObject == null)
+                itemDescObject = transform.Find("ItemDescObject")?.gameObject;
 
-            // 버튼 이벤트 설정
-            SetupButtonEvents();
+            // ItemDesc 텍스트 자동 찾기
+            if (itemDescNameText == null && itemDescObject != null)
+                itemDescNameText = itemDescObject.transform.Find("ItemNameText")?.GetComponent<TMP_Text>();
 
-            // 초기 상태 설정
-            SetSelected(false);
-            SetEquipped(false);
-            SetInteractable(true);
+            if (itemDescText == null && itemDescObject != null)
+                itemDescText = itemDescObject.transform.Find("ItemDescText")?.GetComponent<TMP_Text>();
+
+            // 리스트 초기화
+            itemButtons = new List<ItemButton>();
 
             LogDebug("[ItemSlotUI] 컴포넌트 초기화 완료");
         }
@@ -103,434 +69,304 @@ public class ItemSlotUI : MonoBehaviour
         }
     }
 
-    private void SetupButtonEvents()
+    /// <summary>
+    /// 아이템 슬롯 초기화 (특정 타입의 아이템들 표시)
+    /// </summary>
+    public void Initialize(ItemData.ItemType itemType)
     {
         try
         {
-            if (slotButton != null)
-            {
-                slotButton.onClick.RemoveAllListeners();
-                slotButton.onClick.AddListener(OnClick);
-            }
+            currentItemType = itemType;
+            
+            // 기존 아이템 버튼들 제거
+            ClearItemButtons();
+            
+            // 해당 타입의 아이템들 가져오기
+            var items = GetItemsByType(itemType);
+            
+            // 아이템 버튼들 생성
+            CreateItemButtons(items);
+            
+            // 현재 착용 아이템 정보 업데이트
+            UpdateEquippedItemInfo();
+            
+            LogDebug($"[ItemSlotUI] 아이템 슬롯 초기화 완료: {itemType}, 아이템 수: {items.Count}");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[ItemSlotUI] 버튼 이벤트 설정 중 오류: {ex.Message}");
+            Debug.LogError($"[ItemSlotUI] 아이템 슬롯 초기화 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 슬롯 초기화
+    /// 특정 타입의 아이템들 가져오기
     /// </summary>
-    public void Initialize(ItemData data, ItemData.ItemType type)
+    private List<ItemData> GetItemsByType(ItemData.ItemType itemType)
     {
         try
         {
-            itemData = data;
-            itemType = type;
+            if (ItemManager.Instance == null) return new List<ItemData>();
 
-            if (itemData != null)
+            // 소유한 아이템들 중 해당 타입만 필터링
+            var allItems = ItemManager.Instance.GetOwnedItems();
+            var filteredItems = new List<ItemData>();
+
+            foreach (var item in allItems)
             {
-                UpdateUI();
-                LogDebug($"[ItemSlotUI] 슬롯 초기화: {itemData.DisplayName}");
+                if (item.itemType == itemType)
+                {
+                    filteredItems.Add(item);
+                }
+            }
+
+            return filteredItems;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 가져오기 중 오류: {ex.Message}");
+            return new List<ItemData>();
+        }
+    }
+
+    /// <summary>
+    /// 아이템 버튼들 생성
+    /// </summary>
+    private void CreateItemButtons(List<ItemData> items)
+    {
+        try
+        {
+            if (itemButtonPrefab == null)
+            {
+                Debug.LogError("[ItemSlotUI] ItemButton 프리팹이 설정되지 않았습니다.");
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                // 프리팹 인스턴스 생성
+                GameObject buttonObj = Instantiate(itemButtonPrefab, contentTransform);
+                ItemButton itemButton = buttonObj.GetComponent<ItemButton>();
+
+                if (itemButton != null)
+                {
+                    // 아이템 버튼 초기화
+                    itemButton.Initialize(item, currentItemType);
+                    
+                    // 착용 상태 확인 및 설정
+                    bool isEquipped = IsItemEquipped(item.itemId);
+                    itemButton.SetEquipped(isEquipped);
+                    
+                    // 클릭 이벤트 연결
+                    itemButton.OnItemClickedEvent += OnItemButtonClicked;
+                    
+                    // 리스트에 추가
+                    itemButtons.Add(itemButton);
+                }
+                else
+                {
+                    Debug.LogError($"[ItemSlotUI] ItemButton 컴포넌트를 찾을 수 없습니다: {item.itemName}");
+                    Destroy(buttonObj);
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 버튼 생성 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 아이템이 착용되어 있는지 확인
+    /// </summary>
+    private bool IsItemEquipped(string itemId)
+    {
+        try
+        {
+            if (ItemManager.Instance == null) return false;
+            return ItemManager.Instance.IsItemEquipped(itemId);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 착용 상태 확인 중 오류: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 아이템 버튼 클릭 이벤트 처리
+    /// </summary>
+    private void OnItemButtonClicked(ItemButton itemButton)
+    {
+        try
+        {
+            // 이전 선택 해제
+            if (selectedItemButton != null && selectedItemButton != itemButton)
+            {
+                selectedItemButton.SetSelected(false);
+            }
+
+            // 새 선택 설정
+            selectedItemButton = itemButton;
+            itemButton.SetSelected(true);
+
+            // 이벤트 발생
+            OnItemSelectedEvent?.Invoke(itemButton.ItemData, currentItemType);
+
+            // 아이템 교체 처리
+            HandleItemEquip(itemButton);
+
+            LogDebug($"[ItemSlotUI] 아이템 선택: {itemButton.ItemData.itemName}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 버튼 클릭 처리 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 아이템 착용/해제 처리
+    /// </summary>
+    private void HandleItemEquip(ItemButton itemButton)
+    {
+        try
+        {
+            if (ItemManager.Instance == null) return;
+
+            string itemId = itemButton.ItemData.itemId;
+            bool isCurrentlyEquipped = IsItemEquipped(itemId);
+
+            if (isCurrentlyEquipped)
+            {
+                // 착용 해제
+                ItemManager.Instance.UnequipItem(itemButton.ItemData.itemType);
+                itemButton.SetEquipped(false);
+                LogDebug($"[ItemSlotUI] 아이템 착용 해제: {itemButton.ItemData.itemName}");
             }
             else
             {
-                LogDebug("[ItemSlotUI] 슬롯 초기화: 빈 슬롯");
+                // 착용
+                ItemManager.Instance.EquipItem(itemId);
+                itemButton.SetEquipped(true);
+                LogDebug($"[ItemSlotUI] 아이템 착용: {itemButton.ItemData.itemName}");
             }
+
+            // 모든 버튼의 착용 상태 업데이트
+            UpdateAllButtonEquippedStates();
+            
+            // 현재 착용 아이템 정보 업데이트
+            UpdateEquippedItemInfo();
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[ItemSlotUI] 슬롯 초기화 중 오류: {ex.Message}");
+            Debug.LogError($"[ItemSlotUI] 아이템 착용 처리 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// UI 업데이트
+    /// 모든 버튼의 착용 상태 업데이트
     /// </summary>
-    public void UpdateUI()
+    private void UpdateAllButtonEquippedStates()
     {
         try
         {
-            if (itemData == null) return;
-
-            UpdateImages();
-            UpdateTexts();
-            UpdateColors();
-            UpdateStates();
-
-            LogDebug($"[ItemSlotUI] UI 업데이트: {itemData.DisplayName}");
+            foreach (var button in itemButtons)
+            {
+                bool isEquipped = IsItemEquipped(button.ItemData.itemId);
+                button.SetEquipped(isEquipped);
+            }
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[ItemSlotUI] UI 업데이트 중 오류: {ex.Message}");
+            Debug.LogError($"[ItemSlotUI] 버튼 착용 상태 업데이트 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 이미지 업데이트
+    /// 현재 착용 아이템 정보 업데이트
     /// </summary>
-    private void UpdateImages()
+    private void UpdateEquippedItemInfo()
     {
         try
         {
-            // 아이템 이미지 설정
-            if (itemImage != null)
-            {
-                Sprite itemSprite = GetItemSprite();
-                itemImage.sprite = itemSprite;
-                itemImage.color = itemSprite != null ? Color.white : Color.clear;
-            }
+            if (itemDescObject == null) return;
 
-            // 희귀도 테두리 설정
-            if (rarityBorder != null)
+            // 현재 착용된 아이템 가져오기
+            ItemData equippedItem = ItemManager.Instance?.GetEquippedItem(currentItemType);
+
+            if (equippedItem != null)
             {
-                rarityBorder.color = GetRarityColor();
+                // 설명 오브젝트 활성화
+                itemDescObject.SetActive(true);
+
+                // 이름 텍스트 설정
+                if (itemDescNameText != null)
+                {
+                    itemDescNameText.text = equippedItem.itemName;
+                }
+
+                // 설명 텍스트 설정
+                if (itemDescText != null)
+                {
+                    itemDescText.text = GetItemDescription(equippedItem);
+                }
+
+                LogDebug($"[ItemSlotUI] 착용 아이템 정보 업데이트: {equippedItem.itemName}");
+            }
+            else
+            {
+                // 착용된 아이템이 없으면 설명 오브젝트 비활성화
+                itemDescObject.SetActive(false);
+                LogDebug("[ItemSlotUI] 착용된 아이템 없음");
             }
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[ItemSlotUI] 이미지 업데이트 중 오류: {ex.Message}");
+            Debug.LogError($"[ItemSlotUI] 착용 아이템 정보 업데이트 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 텍스트 업데이트
+    /// 아이템 설명 가져오기
     /// </summary>
-    private void UpdateTexts()
+    private string GetItemDescription(ItemData item)
+    {
+        // 간단한 설명 생성 (실제로는 ItemData에 description 필드가 있을 수 있음)
+        return $"{item.itemName}의 상세한 설명입니다. 이 아이템은 {item.itemType} 타입입니다.";
+    }
+
+    /// <summary>
+    /// 아이템 버튼들 제거
+    /// </summary>
+    private void ClearItemButtons()
     {
         try
         {
-            // 아이템 이름 설정
-            if (itemNameText != null)
+            foreach (var button in itemButtons)
             {
-                itemNameText.text = itemData.DisplayName;
+                if (button != null)
+                {
+                    button.OnItemClickedEvent -= OnItemButtonClicked;
+                    Destroy(button.gameObject);
+                }
             }
 
-            // 희귀도 텍스트 설정
-            if (rarityText != null)
-            {
-                rarityText.text = itemData.RarityText;
-                rarityText.color = GetRarityColor();
-            }
+            itemButtons.Clear();
+            selectedItemButton = null;
+
+            LogDebug("[ItemSlotUI] 아이템 버튼들 제거 완료");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[ItemSlotUI] 텍스트 업데이트 중 오류: {ex.Message}");
+            Debug.LogError($"[ItemSlotUI] 아이템 버튼 제거 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 색상 업데이트
+    /// 아이템 슬롯 새로고침
     /// </summary>
-    private void UpdateColors()
+    public void Refresh()
     {
-        try
-        {
-            Color targetColor = normalColor;
-
-            if (isEquipped)
-            {
-                targetColor = equippedColor;
-            }
-            else if (isSelected)
-            {
-                targetColor = selectedColor;
-            }
-
-            if (!isInteractable)
-            {
-                targetColor = disabledColor;
-            }
-
-            // 배경 색상 설정
-            if (backgroundImage != null)
-            {
-                backgroundImage.color = targetColor;
-            }
-
-            // CanvasGroup 알파 설정
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = isInteractable ? 1f : 0.5f;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 색상 업데이트 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 상태 업데이트
-    /// </summary>
-    private void UpdateStates()
-    {
-        try
-        {
-            // 착용 아이콘 설정
-            if (equippedIcon != null)
-            {
-                equippedIcon.SetActive(isEquipped);
-            }
-
-            // 선택 아이콘 설정
-            if (selectedIcon != null)
-            {
-                selectedIcon.SetActive(isSelected);
-            }
-
-            // 버튼 상호작용 설정
-            if (slotButton != null)
-            {
-                slotButton.interactable = isInteractable;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 상태 업데이트 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 아이템 스프라이트 가져오기
-    /// </summary>
-    private Sprite GetItemSprite()
-    {
-        try
-        {
-            if (itemData == null) return null;
-
-            // ItemType에 따라 다른 스프라이트 가져오기
-            switch (itemType)
-            {
-                case ItemData.ItemType.Hat:
-                    return SpriteManager.Instance?.GetHatSprite(itemData.itemId);
-                case ItemData.ItemType.Face:
-                    return SpriteManager.Instance?.GetFaceSprite(itemData.itemId);
-                case ItemData.ItemType.Costume:
-                    return SpriteManager.Instance?.GetCostumeSprite(itemData.itemId);
-                case ItemData.ItemType.Accessory:
-                    return SpriteManager.Instance?.GetAccessorySprite(itemData.itemId);
-                default:
-                    return itemData.sprite;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 아이템 스프라이트 가져오기 중 오류: {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 희귀도 색상 가져오기
-    /// </summary>
-    private Color GetRarityColor()
-    {
-        try
-        {
-            if (itemData == null) return Color.white;
-            return itemData.RarityColor;
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 희귀도 색상 가져오기 중 오류: {ex.Message}");
-            return Color.white;
-        }
-    }
-
-    /// <summary>
-    /// 선택 상태 설정
-    /// </summary>
-    public void SetSelected(bool selected)
-    {
-        try
-        {
-            if (isSelected == selected) return;
-
-            isSelected = selected;
-            UpdateColors();
-            UpdateStates();
-
-            // 선택 애니메이션
-            if (enableAnimations && selected)
-            {
-                StartSelectAnimation();
-            }
-
-            LogDebug($"[ItemSlotUI] 선택 상태 변경: {selected}");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 선택 상태 설정 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 착용 상태 설정
-    /// </summary>
-    public void SetEquipped(bool equipped)
-    {
-        try
-        {
-            if (isEquipped == equipped) return;
-
-            isEquipped = equipped;
-            UpdateColors();
-            UpdateStates();
-
-            LogDebug($"[ItemSlotUI] 착용 상태 변경: {equipped}");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 착용 상태 설정 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 상호작용 가능 상태 설정
-    /// </summary>
-    public void SetInteractable(bool interactable)
-    {
-        try
-        {
-            if (isInteractable == interactable) return;
-
-            isInteractable = interactable;
-            UpdateColors();
-            UpdateStates();
-
-            LogDebug($"[ItemSlotUI] 상호작용 상태 변경: {interactable}");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 상호작용 상태 설정 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 클릭 이벤트 처리
-    /// </summary>
-    private void OnClick()
-    {
-        try
-        {
-            if (!isInteractable) return;
-
-            // 클릭 애니메이션
-            if (enableAnimations)
-            {
-                StartClickAnimation();
-            }
-
-            // 사운드 재생
-            if (enableSound)
-            {
-                AudioManager.Instance?.PlaySFX(clickSound);
-            }
-
-            // 이벤트 발생
-            OnItemClickedEvent?.Invoke(this);
-
-            LogDebug($"[ItemSlotUI] 슬롯 클릭: {itemData?.DisplayName}");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[ItemSlotUI] 클릭 처리 중 오류: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 클릭 애니메이션 시작
-    /// </summary>
-    private void StartClickAnimation()
-    {
-        if (clickAnimationCoroutine != null)
-        {
-            StopCoroutine(clickAnimationCoroutine);
-        }
-
-        clickAnimationCoroutine = StartCoroutine(ClickAnimationCoroutine());
-    }
-
-    /// <summary>
-    /// 선택 애니메이션 시작
-    /// </summary>
-    private void StartSelectAnimation()
-    {
-        if (selectAnimationCoroutine != null)
-        {
-            StopCoroutine(selectAnimationCoroutine);
-        }
-
-        selectAnimationCoroutine = StartCoroutine(SelectAnimationCoroutine());
-    }
-
-    /// <summary>
-    /// 클릭 애니메이션 코루틴
-    /// </summary>
-    private IEnumerator ClickAnimationCoroutine()
-    {
-        if (slotRect == null) yield break;
-
-        Vector3 originalScale = slotRect.localScale;
-        float elapsed = 0f;
-
-        while (elapsed < clickAnimationDuration)
-        {
-            elapsed += Time.deltaTime;
-            float progress = elapsed / clickAnimationDuration;
-            float curveValue = clickCurve.Evaluate(progress);
-
-            slotRect.localScale = Vector3.Lerp(originalScale, originalScale * curveValue, progress);
-            yield return null;
-        }
-
-        slotRect.localScale = originalScale;
-        clickAnimationCoroutine = null;
-    }
-
-    /// <summary>
-    /// 선택 애니메이션 코루틴
-    /// </summary>
-    private IEnumerator SelectAnimationCoroutine()
-    {
-        if (slotRect == null) yield break;
-
-        Vector3 originalScale = slotRect.localScale;
-        float elapsed = 0f;
-
-        while (elapsed < selectAnimationDuration)
-        {
-            elapsed += Time.deltaTime;
-            float progress = elapsed / selectAnimationDuration;
-            float curveValue = selectCurve.Evaluate(progress);
-
-            slotRect.localScale = Vector3.Lerp(originalScale, originalScale * curveValue, progress);
-            yield return null;
-        }
-
-        slotRect.localScale = originalScale;
-        selectAnimationCoroutine = null;
-    }
-
-    /// <summary>
-    /// 애니메이션 활성화/비활성화
-    /// </summary>
-    public void SetAnimationEnabled(bool enabled)
-    {
-        enableAnimations = enabled;
-        LogDebug($"[ItemSlotUI] 애니메이션 {(enabled ? "활성화" : "비활성화")}");
-    }
-
-    /// <summary>
-    /// 사운드 활성화/비활성화
-    /// </summary>
-    public void SetSoundEnabled(bool enabled)
-    {
-        enableSound = enabled;
-        LogDebug($"[ItemSlotUI] 사운드 {(enabled ? "활성화" : "비활성화")}");
+        Initialize(currentItemType);
     }
 
     /// <summary>
@@ -540,11 +376,10 @@ public class ItemSlotUI : MonoBehaviour
     {
         var info = new System.Text.StringBuilder();
         info.AppendLine($"[ItemSlotUI 정보]");
-        info.AppendLine($"아이템: {(itemData != null ? itemData.DisplayName : "없음")}");
-        info.AppendLine($"타입: {itemType}");
-        info.AppendLine($"선택됨: {isSelected}");
-        info.AppendLine($"착용됨: {isEquipped}");
-        info.AppendLine($"상호작용 가능: {isInteractable}");
+        info.AppendLine($"현재 타입: {currentItemType}");
+        info.AppendLine($"아이템 버튼 수: {itemButtons.Count}");
+        info.AppendLine($"선택된 버튼: {(selectedItemButton != null ? selectedItemButton.ItemData.itemName : "없음")}");
+        info.AppendLine($"설명 오브젝트: {(itemDescObject != null ? "활성화" : "비활성화")}");
 
         return info.ToString();
     }
@@ -559,17 +394,16 @@ public class ItemSlotUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (clickAnimationCoroutine != null)
+        // 이벤트 구독 해제
+        foreach (var button in itemButtons)
         {
-            StopCoroutine(clickAnimationCoroutine);
-        }
-
-        if (selectAnimationCoroutine != null)
-        {
-            StopCoroutine(selectAnimationCoroutine);
+            if (button != null)
+            {
+                button.OnItemClickedEvent -= OnItemButtonClicked;
+            }
         }
 
         // 이벤트 초기화
-        OnItemClickedEvent = null;
+        OnItemSelectedEvent = null;
     }
 }

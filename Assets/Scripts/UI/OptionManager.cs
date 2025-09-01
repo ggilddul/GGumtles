@@ -32,7 +32,6 @@ public class OptionManager : MonoBehaviour
     [SerializeField] private bool defaultAutoSave = true;
 
     // 상태 관리
-    private bool isInitialized = false;
     private Coroutine saveSettingsCoroutine;
 
     // 이벤트 정의
@@ -83,7 +82,6 @@ public class OptionManager : MonoBehaviour
             if (bgmSlider == null)
                 bgmSlider = GetComponentInChildren<Slider>();
 
-            isInitialized = true;
             LogDebug("[OptionManager] 옵션 매니저 초기화 완료");
         }
         catch (System.Exception ex)
@@ -491,25 +489,29 @@ public class OptionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 볼륨을 옵션으로 변환
+    /// 볼륨을 옵션으로 변환 (0~4)
     /// </summary>
     private GameSaveData.AudioOption ConvertVolumeToOption(float volume)
     {
         if (volume == 0f) return GameSaveData.AudioOption.Off;
-        if (volume <= 0.5f) return GameSaveData.AudioOption.Low;
-        return GameSaveData.AudioOption.High;
+        if (volume <= 0.25f) return GameSaveData.AudioOption.Low;
+        if (volume <= 0.5f) return GameSaveData.AudioOption.Medium;
+        if (volume <= 0.75f) return GameSaveData.AudioOption.High;
+        return GameSaveData.AudioOption.Max;
     }
 
     /// <summary>
-    /// 옵션을 볼륨으로 변환
+    /// 옵션을 볼륨으로 변환 (0~4)
     /// </summary>
     private float ConvertOptionToVolume(GameSaveData.AudioOption option)
     {
         return option switch
         {
             GameSaveData.AudioOption.Off => 0f,
-            GameSaveData.AudioOption.Low => 0.5f,
-            GameSaveData.AudioOption.High => 1f,
+            GameSaveData.AudioOption.Low => 0.25f,
+            GameSaveData.AudioOption.Medium => 0.5f,
+            GameSaveData.AudioOption.High => 0.75f,
+            GameSaveData.AudioOption.Max => 1f,
             _ => defaultSFXVolume
         };
     }

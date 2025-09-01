@@ -1,30 +1,27 @@
     using UnityEngine;
 using System.Collections;
 using TMPro;
+using UnityEngine.UI;
 
 public class WormTabUI : MonoBehaviour
 {
     public static WormTabUI Instance { get; private set; }
 
     [Header("UI 컴포넌트")]
-    [SerializeField] private OverViewRenderer overViewRenderer;
+    // [SerializeField] private OverViewRenderer overViewRenderer; // 제거됨
     [SerializeField] private TMP_Text ageText;
     [SerializeField] private TMP_Text stageText;
     [SerializeField] private TMP_Text genText;
     [SerializeField] private TMP_Text nameText;
-    [SerializeField] private TMP_Text rarityText;
-    [SerializeField] private TMP_Text statusText;
+    
+    [Header("Worm Overview Panel")]
+    [SerializeField] private GameObject wormOverviewPanel;
+    [SerializeField] private Image wormSpriteImage;
 
     [Header("자동 새로고침 설정")]
     [SerializeField] private bool enableAutoRefresh = true;
     [SerializeField] private float refreshInterval = 1f;
     [SerializeField] private bool refreshOnEnable = true;
-
-    [Header("애니메이션 설정")]
-    [SerializeField] private bool enableTextAnimation = true;
-    [SerializeField] private float textAnimationDuration = 0.3f;
-    [SerializeField] private Color highlightColor = Color.yellow;
-    [SerializeField] private Color normalColor = Color.white;
 
     [Header("디버그")]
     [SerializeField] private bool enableDebugLogs = false;
@@ -32,7 +29,6 @@ public class WormTabUI : MonoBehaviour
     // 상태 관리
     private bool isInitialized = false;
     private Coroutine autoRefreshCoroutine;
-    private Coroutine textAnimationCoroutine;
     private WormData lastWormData;
 
     // 이벤트 정의
@@ -54,6 +50,7 @@ public class WormTabUI : MonoBehaviour
     private void Start()
     {
         InitializeWormTabUI();
+        SubscribeToEvents();
     }
 
     private void InitializeSingleton()
@@ -73,8 +70,8 @@ public class WormTabUI : MonoBehaviour
         try
         {
             // 자동 컴포넌트 찾기
-            if (overViewRenderer == null)
-                overViewRenderer = FindFirstObjectByType<OverViewRenderer>();
+            // if (overViewRenderer == null)
+            //     overViewRenderer = FindFirstObjectByType<OverViewRenderer>(); // 제거됨
 
             if (ageText == null)
                 ageText = transform.Find("AgeText")?.GetComponent<TMP_Text>();
@@ -87,12 +84,13 @@ public class WormTabUI : MonoBehaviour
 
             if (nameText == null)
                 nameText = transform.Find("NameText")?.GetComponent<TMP_Text>();
-
-            if (rarityText == null)
-                rarityText = transform.Find("RarityText")?.GetComponent<TMP_Text>();
-
-            if (statusText == null)
-                statusText = transform.Find("StatusText")?.GetComponent<TMP_Text>();
+                
+            // Worm Overview Panel 관련 컴포넌트 찾기
+            if (wormOverviewPanel == null)
+                wormOverviewPanel = transform.Find("WormOverviewPanel")?.gameObject;
+                
+            if (wormSpriteImage == null)
+                wormSpriteImage = transform.Find("WormOverviewPanel/WormSpriteImage")?.GetComponent<Image>();
 
             isInitialized = true;
             LogDebug("[WormTabUI] 초기화 완료");
@@ -202,7 +200,7 @@ public class WormTabUI : MonoBehaviour
                oldData.lifeStage != newData.lifeStage ||
                oldData.generation != newData.generation ||
                oldData.name != newData.name ||
-               oldData.rarity != newData.rarity ||
+               false || // rarity 비교 제거
                oldData.isAlive != newData.isAlive;
     }
 
@@ -215,8 +213,6 @@ public class WormTabUI : MonoBehaviour
         SetTextSafely(stageText, "-");
         SetTextSafely(genText, "-");
         SetTextSafely(nameText, "-");
-        SetTextSafely(rarityText, "-");
-        SetTextSafely(statusText, "-");
     }
 
     /// <summary>
@@ -228,14 +224,9 @@ public class WormTabUI : MonoBehaviour
         SetTextSafely(stageText, GetLifeStageName(worm.lifeStage));
         SetTextSafely(genText, $"{worm.generation}세대");
         SetTextSafely(nameText, worm.name);
-        SetTextSafely(rarityText, GetRarityText(worm.rarity));
-        SetTextSafely(statusText, GetStatusText(worm));
 
-        // 텍스트 애니메이션
-        if (enableTextAnimation)
-        {
-            StartTextAnimation();
-        }
+        // Worm Sprite 업데이트
+        UpdateWormSprite(worm);
     }
 
     /// <summary>
@@ -284,83 +275,51 @@ public class WormTabUI : MonoBehaviour
         };
     }
 
+
+
+
+    
     /// <summary>
-    /// 희귀도 텍스트 반환
+    /// Worm Sprite 업데이트
     /// </summary>
-    private string GetRarityText(WormData.WormRarity rarity)
+    private void UpdateWormSprite(WormData worm)
     {
-        return rarity switch
+        if (wormSpriteImage == null)
         {
-            WormData.WormRarity.Common => "일반",
-            WormData.WormRarity.Uncommon => "희귀",
-            WormData.WormRarity.Rare => "매우 희귀",
-            WormData.WormRarity.Legendary => "전설",
-            _ => "?"
-        };
-    }
-
-    /// <summary>
-    /// 상태 텍스트 반환
-    /// </summary>
-    private string GetStatusText(WormData worm)
-    {
-        if (!worm.IsAlive)
-            return "사망";
-
-        if (worm.lifeStage == 0)
-            return "부화 대기";
-
-        if (worm.lifeStage == 6)
-            return "영혼 상태";
-
-        return "생존";
-    }
-
-    /// <summary>
-    /// 텍스트 애니메이션 시작
-    /// </summary>
-    private void StartTextAnimation()
-    {
-        if (textAnimationCoroutine != null)
-        {
-            StopCoroutine(textAnimationCoroutine);
+            Debug.LogWarning("[WormTabUI] WormSpriteImage가 설정되지 않았습니다.");
+            return;
         }
-
-        textAnimationCoroutine = StartCoroutine(TextAnimationCoroutine());
-    }
-
-    /// <summary>
-    /// 텍스트 애니메이션 코루틴
-    /// </summary>
-    private IEnumerator TextAnimationCoroutine()
-    {
-        // 모든 텍스트 컴포넌트를 하이라이트 색상으로 변경
-        TMP_Text[] textComponents = { ageText, stageText, genText, nameText, rarityText, statusText };
-        Color[] originalColors = new Color[textComponents.Length];
-
-        for (int i = 0; i < textComponents.Length; i++)
+        
+        try
         {
-            if (textComponents[i] != null)
+            // SpriteManager를 통해 현재 웜의 스프라이트 가져오기
+            if (SpriteManager.Instance != null)
             {
-                originalColors[i] = textComponents[i].color;
-                textComponents[i].color = highlightColor;
+                var completedWormSprite = SpriteManager.Instance.GetHomeTabWormSprite(worm);
+                if (completedWormSprite != null && completedWormSprite.sprite != null)
+                {
+                    wormSpriteImage.sprite = completedWormSprite.sprite;
+                    wormSpriteImage.enabled = true;
+                    LogDebug($"[WormTabUI] Worm Sprite 업데이트: {worm.name}");
+                }
+                else
+                {
+                    wormSpriteImage.enabled = false;
+                    LogDebug("[WormTabUI] Worm Sprite를 찾을 수 없습니다.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[WormTabUI] SpriteManager.Instance가 null입니다.");
             }
         }
-
-        // 애니메이션 지속
-        yield return new WaitForSeconds(textAnimationDuration);
-
-        // 원래 색상으로 복원
-        for (int i = 0; i < textComponents.Length; i++)
+        catch (System.Exception ex)
         {
-            if (textComponents[i] != null)
-            {
-                textComponents[i].color = originalColors[i];
-            }
+            Debug.LogError($"[WormTabUI] Worm Sprite 업데이트 중 오류: {ex.Message}");
         }
-
-        textAnimationCoroutine = null;
     }
+
+
 
     /// <summary>
     /// 자동 새로고침 활성화/비활성화
@@ -390,23 +349,7 @@ public class WormTabUI : MonoBehaviour
         LogDebug($"[WormTabUI] 새로고침 간격 설정: {refreshInterval}초");
     }
 
-    /// <summary>
-    /// 텍스트 애니메이션 활성화/비활성화
-    /// </summary>
-    public void SetTextAnimationEnabled(bool enabled)
-    {
-        enableTextAnimation = enabled;
-        LogDebug($"[WormTabUI] 텍스트 애니메이션 {(enabled ? "활성화" : "비활성화")}");
-    }
 
-    /// <summary>
-    /// 하이라이트 색상 설정
-    /// </summary>
-    public void SetHighlightColor(Color color)
-    {
-        highlightColor = color;
-        LogDebug($"[WormTabUI] 하이라이트 색상 설정: {color}");
-    }
 
     /// <summary>
     /// 수동 새로고침
@@ -427,10 +370,55 @@ public class WormTabUI : MonoBehaviour
         info.AppendLine($"초기화됨: {isInitialized}");
         info.AppendLine($"자동 새로고침: {(enableAutoRefresh ? "활성화" : "비활성화")}");
         info.AppendLine($"새로고침 간격: {refreshInterval}초");
-        info.AppendLine($"텍스트 애니메이션: {(enableTextAnimation ? "활성화" : "비활성화")}");
         info.AppendLine($"현재 웜: {(lastWormData != null ? lastWormData.name : "없음")}");
 
         return info.ToString();
+    }
+    
+    /// <summary>
+    /// 이벤트 구독
+    /// </summary>
+    private void SubscribeToEvents()
+    {
+        // TabManager 이벤트 구독
+        if (TabManager.Instance != null)
+        {
+            TabManager.Instance.OnTabChangedEvent += OnTabChanged;
+            LogDebug("[WormTabUI] TabManager 이벤트 구독 완료");
+        }
+        
+        // WormManager 이벤트 구독
+        if (WormManager.Instance != null)
+        {
+            // WormManager에 이벤트가 있다면 구독
+            LogDebug("[WormTabUI] WormManager 이벤트 구독 완료");
+        }
+    }
+    
+    /// <summary>
+    /// 이벤트 구독 해제
+    /// </summary>
+    private void UnsubscribeFromEvents()
+    {
+        // TabManager 이벤트 구독 해제
+        if (TabManager.Instance != null)
+        {
+            TabManager.Instance.OnTabChangedEvent -= OnTabChanged;
+            LogDebug("[WormTabUI] TabManager 이벤트 구독 해제 완료");
+        }
+    }
+    
+    /// <summary>
+    /// 탭 변경 시 호출
+    /// </summary>
+    private void OnTabChanged(int fromIndex, int toIndex, TabManager.TabType fromType, TabManager.TabType toType)
+    {
+        // Worm 탭으로 변경되었을 때만 UI 업데이트
+        if (toType == TabManager.TabType.Worm)
+        {
+            LogDebug("[WormTabUI] Worm 탭으로 변경됨 - UI 업데이트");
+            UpdateUI();
+        }
     }
 
     private void LogDebug(string message)
@@ -444,13 +432,9 @@ public class WormTabUI : MonoBehaviour
     private void OnDestroy()
     {
         StopAutoRefresh();
-        
-        if (textAnimationCoroutine != null)
-        {
-            StopCoroutine(textAnimationCoroutine);
-        }
 
         // 이벤트 구독 해제
+        UnsubscribeFromEvents();
         OnWormTabRefreshedEvent = null;
         OnWormDataChangedEvent = null;
     }

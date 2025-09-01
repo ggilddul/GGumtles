@@ -8,7 +8,6 @@ public class GameManager : MonoBehaviour
     // 상수 정의
     private const float DEFAULT_TIME_SCALE = 60f;
     private const float SECONDS_IN_DAY = 86400f;
-    private const float LOADING_END_DELAY = 2f;
     private const int DAYTIME_START = 7;
     private const int DAYTIME_END = 17;
     private const int SUNSET_START_MORNING = 5;
@@ -34,12 +33,20 @@ public class GameManager : MonoBehaviour
     [Header("References")]
     public MapManager mapManager;
 
+    // 현재 시간 프로퍼티
+    public int CurrentHour => hour;
+    public int CurrentMinute => minute;
+    public string CurrentAMPM => AMPM;
+
     // 이벤트 정의
     public delegate void OnGameTimeChanged(int hour, int minute, string ampm);
     public event OnGameTimeChanged OnGameTimeChangedEvent;
 
     public delegate void OnResourceChanged(int acornCount, int diamondCount);
     public event OnResourceChanged OnResourceChangedEvent;
+
+    public delegate void OnGameInitialized();
+    public event OnGameInitialized OnGameInitializedEvent;
 
     private void Awake()
     {
@@ -66,10 +73,12 @@ public class GameManager : MonoBehaviour
             LoadGameData();
             InitializeWormSystem();
             InitializeUI();
-            ScheduleLoadingEnd();
             
             isGameInitialized = true;
             Debug.Log("[GameManager] 게임 초기화 완료");
+            
+            // 초기화 완료 이벤트 발생
+            OnGameInitializedEvent?.Invoke();
         }
         catch (System.Exception ex)
         {
@@ -119,6 +128,7 @@ public class GameManager : MonoBehaviour
     private void InitializeUI()
     {
         UpdateCurrentWormNameUI();
+        StartCoroutine(UpdateTimeUIWhenReady()); // TopBarManager가 준비될 때까지 기다림
         
         if (mapManager != null)
         {
@@ -127,21 +137,24 @@ public class GameManager : MonoBehaviour
         }
 
         ItemTabUI.Instance?.RefreshAllPreviews();
-        TabManager.Instance?.OpenTab(2);
+        TabManager.Instance?.OpenTab(2); // Home 탭으로 자동 전환
     }
 
-    private void ScheduleLoadingEnd()
+    private IEnumerator UpdateTimeUIWhenReady()
     {
-        Invoke(nameof(EndLoading), LOADING_END_DELAY);
+        yield return new WaitUntil(() => TopBarManager.Instance != null && TopBarManager.Instance.IsInitialized);
+        UpdateTimeUI();
     }
 
-    private void EndLoading()
+    /// <summary>
+    /// TopBarManager에서 호출할 수 있는 시간 업데이트 메서드
+    /// </summary>
+    public void ForceTimeUpdate()
     {
-        if (LoadingManager.Instance != null)
-        {
-            LoadingManager.Instance.HideLoading(LoadingManager.LoadingType.Logo);
-        }
+        OnGameTimeChangedEvent?.Invoke(hour, minute, AMPM);
     }
+
+
 
     private void Update()
     {
@@ -161,7 +174,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            PopupManager.Instance?.OpenPopup(18);
+            PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Option);
             Debug.LogWarning("[GameManager] 도토리가 부족합니다.");
         }
     }
@@ -274,9 +287,10 @@ public class GameManager : MonoBehaviour
         WormData currentWorm = WormManager.Instance.GetCurrentWorm();
         if (currentWorm != null)
         {
-            currentWorm.age += 1;
-            WormManager.Instance.CheckEvolution();
-            Debug.Log($"[GameManager] 벌레 나이 증가 - 나이: {currentWorm.age}, 단계: {currentWorm.lifeStage}");
+            // WormManager에서 이미 나이 증가를 처리하므로 여기서는 제거
+            // currentWorm.age += 1; // 제거
+            // WormManager.Instance.CheckEvolution(); // 제거
+            Debug.Log($"[GameManager] 벌레 나이 증가 체크 - 나이: {currentWorm.age}, 단계: {currentWorm.lifeStage}");
         }
     }
 

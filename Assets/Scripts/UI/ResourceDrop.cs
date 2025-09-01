@@ -34,7 +34,6 @@ public class ResourceDrop : MonoBehaviour
     private bool hasLanded = false;
 
     // 애니메이션 상태
-    private bool isAnimating = false;
     private Coroutine scaleAnimationCoroutine;
 
     // 이벤트 정의
@@ -254,8 +253,6 @@ public class ResourceDrop : MonoBehaviour
     /// </summary>
     private System.Collections.IEnumerator ScaleAnimationCoroutine(bool isStart)
     {
-        isAnimating = true;
-
         Vector3 originalScale = transform.localScale;
         Vector3 targetScale = isStart ? originalScale * 1.2f : originalScale * 0.9f;
         Vector3 finalScale = isStart ? originalScale : originalScale;
@@ -276,7 +273,6 @@ public class ResourceDrop : MonoBehaviour
         // 최종 스케일로 조정
         transform.localScale = finalScale;
 
-        isAnimating = false;
         scaleAnimationCoroutine = null;
     }
 

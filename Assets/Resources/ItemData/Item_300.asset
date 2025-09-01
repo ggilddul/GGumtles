@@ -9,14 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8570af425c07d44338993292dbcfdc66, type: 3}
+  m_Script: {fileID: 11500000, guid: 7e6db2d9da74043d99e4ae9c8bfdb9b1, type: 3}
   m_Name: Item_300
   m_EditorClassIdentifier: 
-  type: 2
   itemId: 300
   itemName: "\uD22C\uBA85 \uB9DD\uD1A0"
-  description: "\uC65C\uC778\uC9C0 \uBAA8\uB974\uACA0\uC9C0\uB9CC \uC785\uC740 \uB290\uB08C\uC870\uCC28
-    \uB098\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4?"
-  sprite: {fileID: 21300000, guid: d2bbf4a66fb1f4b97befddd7c632c1ed, type: 3}
-  positionOffset: {x: 0, y: 0}
-  isVisible: 1
+  itemDescription: "\uD22C\uBA85 \uB9DD\uD1A0\uC778\uB370 \uC785\uC740 \uB290\uB08C\uB3C4
+    \uB098\uC9C0 \uC54A\uB124\uC694!"
+  itemType: 2
+  itemSprite: {fileID: 21300000, guid: d2bbf4a66fb1f4b97befddd7c632c1ed, type: 3}
+  isOwned: 1

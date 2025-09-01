@@ -8,10 +8,10 @@ public class AchievementUI : MonoBehaviour
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text descriptionText;
-    [SerializeField] private TMP_Text progressText;
-    [SerializeField] private Image progressBar;
-    [SerializeField] private GameObject unlockedIcon;
-    [SerializeField] private GameObject lockedIcon;
+    
+    [Header("Achievement 2 전용")]
+    [SerializeField] private Image achieveWormImage;
+    [SerializeField] private TMP_Text achieveWormNameText;
 
     [Header("설정")]
     [SerializeField] private bool enableAnimations = true;
@@ -23,7 +23,7 @@ public class AchievementUI : MonoBehaviour
 
     // 데이터
     private AchievementData achievementData;
-    private AchievementStatus achievementStatus;
+    private bool isUnlocked = false;
 
     // 상태
     private bool isAnimating = false;
@@ -31,8 +31,7 @@ public class AchievementUI : MonoBehaviour
 
     // 프로퍼티
     public AchievementData AchievementData => achievementData;
-    public AchievementStatus AchievementStatus => achievementStatus;
-    public bool IsUnlocked => achievementStatus?.isUnlocked ?? false;
+    public bool IsUnlocked => isUnlocked;
 
     // 이벤트 정의
     public delegate void OnAchievementUIUpdated(AchievementUI achievementUI);
@@ -65,16 +64,16 @@ public class AchievementUI : MonoBehaviour
     /// <summary>
     /// 업적 UI 설정
     /// </summary>
-    public void Set(AchievementData definition, AchievementStatus status)
+    public void Set(AchievementData definition, bool unlocked)
     {
         try
         {
             achievementData = definition;
-            achievementStatus = status;
+            isUnlocked = unlocked;
 
-            UpdateUI(definition, status);
+            UpdateUI(definition, unlocked);
 
-            LogDebug($"[AchievementUI] 업적 UI 설정 완료: {definition?.ach_title}");
+            LogDebug($"[AchievementUI] 업적 UI 설정 완료: {definition?.achievementTitle}");
         }
         catch (System.Exception ex)
         {
@@ -83,27 +82,109 @@ public class AchievementUI : MonoBehaviour
     }
 
     /// <summary>
-    /// 업적 상태 업데이트
+    /// 업적 UI 설정 (Achievement2 전용)
     /// </summary>
-    public void UpdateStatus(AchievementStatus newStatus)
+    public void Set(AchievementData definition, bool unlocked, bool isAchievement2)
     {
         try
         {
-            bool wasUnlocked = achievementStatus?.isUnlocked ?? false;
-            achievementStatus = newStatus;
+            achievementData = definition;
+            isUnlocked = unlocked;
 
-            if (enableAnimations && wasUnlocked != newStatus.isUnlocked)
+            UpdateUI(definition, unlocked, isAchievement2);
+
+            LogDebug($"[AchievementUI] 업적 UI 설정 완료: {definition?.achievementTitle} (Achievement2: {isAchievement2})");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 업적 UI 설정 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 업적 인덱스로 초기화 (PopupManager용)
+    /// </summary>
+    public void Initialize(int achievementIndex)
+    {
+        try
+        {
+            if (AchievementManager.Instance == null)
+            {
+                Debug.LogWarning("[AchievementUI] AchievementManager 인스턴스가 없습니다.");
+                return;
+            }
+
+            var definitions = AchievementManager.Instance.GetAllDefinitions();
+            if (achievementIndex >= 0 && achievementIndex < definitions.Count)
+            {
+                var definition = definitions[achievementIndex];
+                bool isUnlocked = AchievementManager.Instance.IsUnlocked(definition.achievementId);
+                Set(definition, isUnlocked);
+            }
+            else
+            {
+                Debug.LogWarning($"[AchievementUI] 유효하지 않은 업적 인덱스: {achievementIndex}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 초기화 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 업적 인덱스로 초기화 (Achievement2 전용)
+    /// </summary>
+    public void Initialize(int achievementIndex, bool isAchievement2)
+    {
+        try
+        {
+            if (AchievementManager.Instance == null)
+            {
+                Debug.LogWarning("[AchievementUI] AchievementManager 인스턴스가 없습니다.");
+                return;
+            }
+
+            var definitions = AchievementManager.Instance.GetAllDefinitions();
+            if (achievementIndex >= 0 && achievementIndex < definitions.Count)
+            {
+                var definition = definitions[achievementIndex];
+                bool isUnlocked = AchievementManager.Instance.IsUnlocked(definition.achievementId);
+                Set(definition, isUnlocked, isAchievement2);
+            }
+            else
+            {
+                Debug.LogWarning($"[AchievementUI] 유효하지 않은 업적 인덱스: {achievementIndex}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 초기화 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 업적 상태 업데이트
+    /// </summary>
+    public void UpdateStatus(bool unlocked)
+    {
+        try
+        {
+            bool wasUnlocked = isUnlocked;
+            isUnlocked = unlocked;
+
+            if (enableAnimations && wasUnlocked != unlocked)
             {
                 // 해금 상태가 변경된 경우 애니메이션 실행
                 StartUpdateAnimation();
             }
             else
             {
-                UpdateUI(achievementData, newStatus);
+                UpdateUI(achievementData, unlocked);
             }
 
             OnAchievementUIUpdatedEvent?.Invoke(this);
-            LogDebug($"[AchievementUI] 업적 상태 업데이트: {achievementData?.ach_title} - {newStatus.isUnlocked}");
+            LogDebug($"[AchievementUI] 업적 상태 업데이트: {achievementData?.achievementTitle} - {unlocked}");
         }
         catch (System.Exception ex)
         {
@@ -114,22 +195,22 @@ public class AchievementUI : MonoBehaviour
     /// <summary>
     /// UI 업데이트
     /// </summary>
-    private void UpdateUI(AchievementData definition, AchievementStatus status)
+    private void UpdateUI(AchievementData definition, bool unlocked)
     {
-        if (definition == null || status == null) return;
+        if (definition == null) return;
 
         try
         {
             // 제목 텍스트
             if (titleText != null)
             {
-                titleText.text = definition.ach_title ?? "알 수 없는 업적";
+                titleText.text = definition.achievementTitle ?? "알 수 없는 업적";
             }
 
             // 설명 텍스트
             if (descriptionText != null)
             {
-                descriptionText.text = definition.ach_description ?? "";
+                descriptionText.text = definition.achievementDescription ?? "";
             }
 
             // 아이콘 이미지
@@ -140,45 +221,66 @@ public class AchievementUI : MonoBehaviour
                 iconImage.sprite = icon;
                 
                 // 해금 상태에 따른 색상 설정
-                iconImage.color = status.isUnlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f, 1f);
-            }
-
-            // 진행도 텍스트
-            if (progressText != null)
-            {
-                if (definition.hasProgress)
-                {
-                    float progress = status.progress;
-                    float targetValue = definition.targetValue;
-                    progressText.text = $"{progress:F0}/{targetValue:F0}";
-                }
-                else
-                {
-                    progressText.text = status.isUnlocked ? "완료" : "미완료";
-                }
-            }
-
-            // 진행도 바
-            if (progressBar != null && definition.hasProgress)
-            {
-                float progress = status.progress / definition.targetValue;
-                progressBar.fillAmount = Mathf.Clamp01(progress);
-            }
-
-            // 해금/잠금 아이콘
-            if (unlockedIcon != null)
-            {
-                unlockedIcon.SetActive(status.isUnlocked);
-            }
-
-            if (lockedIcon != null)
-            {
-                lockedIcon.SetActive(!status.isUnlocked);
+                iconImage.color = unlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f, 1f);
             }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[AchievementUI] UI 업데이트 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// UI 업데이트 (Achievement2 전용)
+    /// </summary>
+    private void UpdateUI(AchievementData definition, bool unlocked, bool isAchievement2)
+    {
+        if (definition == null) return;
+
+        try
+        {
+            // 기본 UI 업데이트
+            UpdateUI(definition, unlocked);
+
+            // Achievement2 전용 UI 업데이트
+            if (isAchievement2)
+            {
+                UpdateAchievement2UI(definition);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] UI 업데이트 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Achievement2 전용 UI 업데이트
+    /// </summary>
+    private void UpdateAchievement2UI(AchievementData definition)
+    {
+        try
+        {
+            // 달성 웜 이미지
+            if (achieveWormImage != null)
+            {
+                // AchievementData에서 달성 웜 정보 가져오기
+                // TODO: AchievementData에 달성 웜 정보 필드 추가 필요
+                Sprite wormSprite = GetAchievementWormSprite(definition);
+                achieveWormImage.sprite = wormSprite;
+            }
+
+            // 달성 웜 이름 텍스트
+            if (achieveWormNameText != null)
+            {
+                // AchievementData에서 달성 웜 이름 가져오기
+                string wormName = GetAchievementWormName(definition);
+                achieveWormNameText.text = wormName ?? "알 수 없는 웜";
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] Achievement2 UI 업데이트 중 오류: {ex.Message}");
         }
     }
 
@@ -192,7 +294,7 @@ public class AchievementUI : MonoBehaviour
             // SpriteManager에서 가져오기 시도
             if (SpriteManager.Instance != null)
             {
-                Sprite icon = SpriteManager.Instance.GetAchievementSprite(definition.ach_id);
+                Sprite icon = SpriteManager.Instance.GetAchievementSprite(definition.achievementId);
                 if (icon != null) return icon;
             }
 
@@ -208,6 +310,104 @@ public class AchievementUI : MonoBehaviour
         catch (System.Exception ex)
         {
             Debug.LogError($"[AchievementUI] 아이콘 가져오기 중 오류: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 달성 웜 스프라이트 가져오기
+    /// </summary>
+    private Sprite GetAchievementWormSprite(AchievementData definition)
+    {
+        try
+        {
+            // AchievementData에서 달성 웜 ID 가져오기
+            string wormId = GetAchievementWormId(definition);
+            if (!string.IsNullOrEmpty(wormId))
+            {
+                // WormManager에서 웜 데이터 가져오기
+                if (WormManager.Instance != null)
+                {
+                    var wormData = WormManager.Instance.GetWormById(int.Parse(wormId));
+                    if (wormData != null)
+                    {
+                        // WormData에서 스프라이트 가져오기
+                        return GetWormSprite(wormData);
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 달성 웜 스프라이트 가져오기 중 오류: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 달성 웜 이름 가져오기
+    /// </summary>
+    private string GetAchievementWormName(AchievementData definition)
+    {
+        try
+        {
+            // AchievementData에서 달성 웜 ID 가져오기
+            string wormId = GetAchievementWormId(definition);
+            if (!string.IsNullOrEmpty(wormId))
+            {
+                // WormManager에서 웜 데이터 가져오기
+                if (WormManager.Instance != null)
+                {
+                    var wormData = WormManager.Instance.GetWormById(int.Parse(wormId));
+                    if (wormData != null)
+                    {
+                        return wormData.name;
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 달성 웜 이름 가져오기 중 오류: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// AchievementData에서 달성 웜 ID 가져오기
+    /// </summary>
+    private string GetAchievementWormId(AchievementData definition)
+    {
+        // AchievementData에서 달성 웜 ID 가져오기
+        if (definition != null && definition.achieveWormId >= 0)
+        {
+            return definition.achieveWormId.ToString();
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 웜 데이터에서 스프라이트 가져오기
+    /// </summary>
+    private Sprite GetWormSprite(WormData wormData)
+    {
+        try
+        {
+            // WormData의 생명주기 단계를 기반으로 스프라이트 가져오기
+            if (SpriteManager.Instance != null)
+            {
+                return SpriteManager.Instance.GetLifeStageSprite(wormData.lifeStage);
+            }
+            
+            return null;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementUI] 웜 스프라이트 가져오기 중 오류: {ex.Message}");
             return null;
         }
     }
@@ -255,7 +455,7 @@ public class AchievementUI : MonoBehaviour
         }
 
         // UI 업데이트
-        UpdateUI(achievementData, achievementStatus);
+        UpdateUI(achievementData, isUnlocked);
 
         // 페이드 인
         elapsed = 0f;
@@ -313,9 +513,8 @@ public class AchievementUI : MonoBehaviour
     {
         var info = new System.Text.StringBuilder();
         info.AppendLine($"[AchievementUI 정보]");
-        info.AppendLine($"업적: {achievementData?.ach_title ?? "없음"}");
-        info.AppendLine($"해금됨: {achievementStatus?.isUnlocked ?? false}");
-        info.AppendLine($"진행도: {(achievementStatus?.progress ?? 0):P0}");
+        info.AppendLine($"업적: {achievementData?.achievementTitle ?? "없음"}");
+        info.AppendLine($"해금됨: {isUnlocked}");
         info.AppendLine($"애니메이션: {(enableAnimations ? "활성화" : "비활성화")}");
 
         return info.ToString();

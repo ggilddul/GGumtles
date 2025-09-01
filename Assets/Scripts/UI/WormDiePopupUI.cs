@@ -114,7 +114,7 @@ public class WormDiePopupUI : MonoBehaviour
             UpdateUI();
             Show();
 
-            LogDebug($"[WormDiePopupUI] 사망 팝업 열기: {worm.DisplayName}");
+            LogDebug($"[WormDiePopupUI] 사망 팝업 열기: {worm.name}");
         }
         catch (System.Exception ex)
         {
@@ -241,7 +241,7 @@ public class WormDiePopupUI : MonoBehaviour
             // 이름 텍스트
             if (nameText != null)
             {
-                nameText.text = currentWorm.DisplayName;
+                nameText.text = currentWorm.name;
             }
 
             // 나이 텍스트
@@ -259,8 +259,8 @@ public class WormDiePopupUI : MonoBehaviour
             // 희귀도 텍스트
             if (rarityText != null)
             {
-                rarityText.text = $"희귀도: {currentWorm.GetRarityText()}";
-                rarityText.color = currentWorm.GetRarityColor();
+                rarityText.text = "희귀도: 일반"; // 단순화: 기본 희귀도
+                rarityText.color = Color.white; // 단순화: 기본 색상
             }
 
             // 세대 텍스트
@@ -338,7 +338,7 @@ public class WormDiePopupUI : MonoBehaviour
         try
         {
             var item = ItemManager.Instance?.GetItemById(itemId);
-            return item?.sprite;
+            return null; // 단순화: 기본 스프라이트 제거
         }
         catch (System.Exception ex)
         {
@@ -536,10 +536,10 @@ public class WormDiePopupUI : MonoBehaviour
 
         var info = new System.Text.StringBuilder();
         info.AppendLine($"[WormDiePopupUI 정보]");
-        info.AppendLine($"벌레: {currentWorm.DisplayName}");
+        info.AppendLine($"벌레: {currentWorm.name}");
         info.AppendLine($"나이: {FormatAge(currentWorm.age)}");
         info.AppendLine($"생명주기: {GetLifeStageName(currentWorm.lifeStage)}");
-        info.AppendLine($"희귀도: {currentWorm.GetRarityText()}");
+        info.AppendLine($"희귀도: 일반");
         info.AppendLine($"세대: {currentWorm.generation}");
         info.AppendLine($"수명: {FormatAge(currentWorm.lifespan)}");
         info.AppendLine($"표시됨: {isShowing}");

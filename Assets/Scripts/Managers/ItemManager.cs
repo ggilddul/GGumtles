@@ -8,7 +8,6 @@ public class ItemManager : MonoBehaviour
     public static ItemManager Instance { get; private set; }
 
     [Header("아이템 설정")]
-    [SerializeField] private bool enableItemEffects = true;
     [SerializeField] private bool autoSaveOnChange = true;
     [SerializeField] private float saveDelay = 1f;
     
@@ -62,32 +61,7 @@ public class ItemManager : MonoBehaviour
         }
     }
 
-    // 아이템 효과 클래스
-    [System.Serializable]
-    public class ItemEffect
-    {
-        public enum EffectType
-        {
-            StatBoost,
-            SpecialAbility,
-            VisualEffect,
-            AudioEffect
-        }
-        
-        public EffectType type;
-        public string effectName;
-        public float effectValue;
-        public string targetStat;
-        public bool isActive = false;
-        
-        public ItemEffect(EffectType effectType, string name, float value, string stat = "")
-        {
-            type = effectType;
-            effectName = name;
-            effectValue = value;
-            targetStat = stat;
-        }
-    }
+
 
     // 이벤트 정의
     public delegate void OnItemAdded(string itemId, ItemData itemData, int quantity);
@@ -102,8 +76,7 @@ public class ItemManager : MonoBehaviour
     public delegate void OnItemUsed(string itemId, int useCount);
     public event OnItemUsed OnItemUsedEvent;
 
-    public delegate void OnItemEffectApplied(string itemId, ItemEffect effect);
-    public event OnItemEffectApplied OnItemEffectAppliedEvent;
+
 
     // 상태 관리
     private bool isInitialized = false;
@@ -121,7 +94,7 @@ public class ItemManager : MonoBehaviour
         InitializeSingleton();
     }
 
-    private void Start()
+    public void Initialize()
     {
         InitializeItemSystem();
     }
@@ -307,10 +280,10 @@ public class ItemManager : MonoBehaviour
         }
 
         // 이전 장착 아이템 해제
-        UnequipItemByType(itemData.type);
+        UnequipItemByType(itemData.itemType);
 
         // 새 아이템 장착
-        switch (itemData.type)
+        switch (itemData.itemType)
         {
             case ItemData.ItemType.Hat:
                 equippedItems.hatId = itemId;
@@ -322,22 +295,18 @@ public class ItemManager : MonoBehaviour
                 equippedItems.costumeId = itemId;
                 break;
             default:
-                Debug.LogWarning($"[ItemManager] 지원하지 않는 아이템 타입: {itemData.type}");
+                Debug.LogWarning($"[ItemManager] 지원하지 않는 아이템 타입: {itemData.itemType}");
                 return false;
         }
 
         itemInfo.isEquipped = true;
         
-        // 아이템 효과 적용
-        if (enableItemEffects)
-        {
-            ApplyItemEffects(itemData);
-        }
 
-        LogDebug($"[ItemManager] 아이템 장착: {itemData.itemName} ({itemData.type})");
+
+        LogDebug($"[ItemManager] 아이템 장착: {itemData.itemName} ({itemData.itemType})");
 
         // 이벤트 발생
-        OnItemEquippedEvent?.Invoke(itemId, itemData.type);
+        OnItemEquippedEvent?.Invoke(itemId, itemData.itemType);
 
         // 자동 저장
         if (autoSaveOnChange)
@@ -375,7 +344,7 @@ public class ItemManager : MonoBehaviour
         if (itemData == null) return false;
 
         // 장착 해제
-        switch (itemData.type)
+        switch (itemData.itemType)
         {
             case ItemData.ItemType.Hat:
                 if (equippedItems.hatId == itemId)
@@ -393,16 +362,12 @@ public class ItemManager : MonoBehaviour
 
         itemInfo.isEquipped = false;
 
-        // 아이템 효과 제거
-        if (enableItemEffects)
-        {
-            RemoveItemEffects(itemData);
-        }
+
 
         LogDebug($"[ItemManager] 아이템 장착 해제: {itemData.itemName}");
 
         // 이벤트 발생
-        OnItemUnequippedEvent?.Invoke(itemId, itemData.type);
+        OnItemUnequippedEvent?.Invoke(itemId, itemData.itemType);
 
         // 자동 저장
         if (autoSaveOnChange)
@@ -491,30 +456,7 @@ public class ItemManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// 아이템 효과 적용
-    /// </summary>
-    private void ApplyItemEffects(ItemData itemData)
-    {
-        if (itemData == null) return;
 
-        // 아이템별 효과 적용 로직
-        var effect = new ItemEffect(ItemEffect.EffectType.StatBoost, $"{itemData.itemName} 효과", 1.0f);
-        
-        LogDebug($"[ItemManager] 아이템 효과 적용: {itemData.itemName}");
-        
-        OnItemEffectAppliedEvent?.Invoke(itemData.itemId, effect);
-    }
-
-    /// <summary>
-    /// 아이템 효과 제거
-    /// </summary>
-    private void RemoveItemEffects(ItemData itemData)
-    {
-        if (itemData == null) return;
-
-        LogDebug($"[ItemManager] 아이템 효과 제거: {itemData.itemName}");
-    }
 
     /// <summary>
     /// 아이템 검증
@@ -631,14 +573,21 @@ public class ItemManager : MonoBehaviour
 
     public List<ItemData> GetOwnedItems() => new List<ItemData>(ownedItemsList);
 
-    public List<ItemData> GetItemsByType(ItemData.ItemType type)
+    /// <summary>
+    /// 특정 타입의 모든 아이템 데이터 가져오기
+    /// </summary>
+    public List<ItemData> GetItemsByType(ItemData.ItemType itemType)
     {
-        return ownedItemsList.Where(i => i.type == type).ToList();
+        if (allItemDataDict == null) return new List<ItemData>();
+        
+        return allItemDataDict.Values
+            .Where(item => item.itemType == itemType)
+            .ToList();
     }
 
     public List<OwnedItemInfo> GetOwnedItemInfosByType(ItemData.ItemType type)
     {
-        return ownedItemsDict.Values.Where(i => i.itemData.type == type).ToList();
+        return ownedItemsDict.Values.Where(i => i.itemData.itemType == type).ToList();
     }
 
     public string GetEquippedItemId(ItemData.ItemType type)
@@ -677,7 +626,7 @@ public class ItemManager : MonoBehaviour
 
     public int GetItemsCountByType(ItemData.ItemType type)
     {
-        return ownedItemsDict.Values.Count(i => i.itemData.type == type);
+        return ownedItemsDict.Values.Count(i => i.itemData.itemType == type);
     }
 
     public int GetEquippedItemsCount()
@@ -744,6 +693,6 @@ public class ItemManager : MonoBehaviour
         OnItemEquippedEvent = null;
         OnItemUnequippedEvent = null;
         OnItemUsedEvent = null;
-        OnItemEffectAppliedEvent = null;
+
     }
 }

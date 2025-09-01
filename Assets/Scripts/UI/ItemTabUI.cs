@@ -7,31 +7,29 @@ public class ItemTabUI : MonoBehaviour
 {
     public static ItemTabUI Instance { get; private set; }
 
-    [Header("렌더러")]
-    [SerializeField] private OverViewRenderer overViewRenderer;
+    [Header("개요 UI")]
+    [SerializeField] private GameObject overviewPanel;
+    [SerializeField] private Image overviewImage;
+    [SerializeField] private Button itemDrawButton;
+    [SerializeField] private Button shuffleButton;
+
+    // [Header("렌더러")] - OverviewRenderer 제거
+    // [SerializeField] private OverViewRenderer overViewRenderer;
 
     [Header("모자 UI")]
     [SerializeField] private Image hatPreviewImage;
     [SerializeField] private TMP_Text hatNameText;
     [SerializeField] private Button hatButton;
-    [SerializeField] private GameObject hatEquippedIcon;
 
     [Header("얼굴 UI")]
     [SerializeField] private Image facePreviewImage;
     [SerializeField] private TMP_Text faceNameText;
     [SerializeField] private Button faceButton;
-    [SerializeField] private GameObject faceEquippedIcon;
 
     [Header("의상 UI")]
     [SerializeField] private Image costumePreviewImage;
     [SerializeField] private TMP_Text costumeNameText;
     [SerializeField] private Button costumeButton;
-    [SerializeField] private GameObject costumeEquippedIcon;
-
-    [Header("애니메이션")]
-    [SerializeField] private bool enableAnimations = true;
-    // [SerializeField] private float animationDuration = 0.3f;  // 미사용
-    [SerializeField] private AnimationCurve animationCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("디버그")]
     [SerializeField] private bool enableDebugLogs = false;
@@ -39,6 +37,7 @@ public class ItemTabUI : MonoBehaviour
     // 상태 관리
     private bool isInitialized = false;
     private Dictionary<ItemData.ItemType, ItemData> currentEquippedItems;
+    private Coroutine waitWormCoroutine;
 
     // 이벤트 정의
     public delegate void OnItemTabRefreshed();
@@ -54,7 +53,58 @@ public class ItemTabUI : MonoBehaviour
 
     private void Start()
     {
+        // 매니저들이 준비될 때까지 기다린 후 초기화
+        StartCoroutine(WaitForManagersAndInitialize());
+    }
+
+    private System.Collections.IEnumerator WaitForManagersAndInitialize()
+    {
+        // ItemManager와 WormManager가 준비될 때까지 대기
+        yield return new WaitUntil(() => ItemManager.Instance != null && WormManager.Instance != null);
+        
+        // 추가로 안전을 위해 잠시 더 대기
+        yield return new WaitForSeconds(0.1f);
+        
         InitializeItemTab();
+    }
+
+    private void OnEnable()
+    {
+        // 탭이 활성화될 때도 항상 최신 상태 보장
+        SetupButtonEvents();
+        RegisterItemManagerEvents();
+        RegisterWormManagerEvents();
+        if (WormManager.Instance == null)
+        {
+            if (waitWormCoroutine != null) StopCoroutine(waitWormCoroutine);
+            waitWormCoroutine = StartCoroutine(WaitForWormManagerAndSubscribe());
+        }
+
+        if (isInitialized)
+        {
+            RefreshAllPreviews();
+            UpdateButtonsInteractable();
+        }
+    }
+
+    private void OnDisable()
+    {
+        // 이벤트 중복 방지/정리
+        if (ItemManager.Instance != null)
+        {
+            ItemManager.Instance.OnItemEquippedEvent -= OnItemEquipped;
+            ItemManager.Instance.OnItemUnequippedEvent -= OnItemUnequipped;
+        }
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
+            WormManager.Instance.OnWormEvolvedEvent -= OnWormEvolved;
+        }
+        if (waitWormCoroutine != null)
+        {
+            StopCoroutine(waitWormCoroutine);
+            waitWormCoroutine = null;
+        }
     }
 
     private void InitializeSingleton()
@@ -77,11 +127,18 @@ public class ItemTabUI : MonoBehaviour
             
             // 버튼 이벤트 설정
             SetupButtonEvents();
+            RegisterItemManagerEvents();
+            RegisterWormManagerEvents();
+            if (WormManager.Instance == null)
+            {
+                if (waitWormCoroutine != null) StopCoroutine(waitWormCoroutine);
+                waitWormCoroutine = StartCoroutine(WaitForWormManagerAndSubscribe());
+            }
             
+            // 초기화 완료 플래그를 먼저 세운 뒤 UI 업데이트 (초기 렌더 보장)
+            isInitialized = true;
             // 초기 UI 업데이트
             RefreshAllPreviews();
-            
-            isInitialized = true;
 
             LogDebug("[ItemTabUI] 아이템 탭 초기화 완료");
         }
@@ -95,31 +152,162 @@ public class ItemTabUI : MonoBehaviour
     {
         try
         {
-            // 모자 버튼
+            // 모자 버튼 - ReusableButton으로 설정
             if (hatButton != null)
             {
+                var hatReusableButton = hatButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (hatReusableButton == null)
+                {
+                    hatReusableButton = hatButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                }
+                hatReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Hat);
+                
+                // 기존 onClick도 유지 (호환성)
                 hatButton.onClick.RemoveAllListeners();
                 hatButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Hat));
             }
 
-            // 얼굴 버튼
+            // 얼굴 버튼 - ReusableButton으로 설정
             if (faceButton != null)
             {
+                var faceReusableButton = faceButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (faceReusableButton == null)
+                {
+                    faceReusableButton = faceButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                }
+                faceReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Face);
+                
+                // 기존 onClick도 유지 (호환성)
                 faceButton.onClick.RemoveAllListeners();
                 faceButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Face));
             }
 
-            // 의상 버튼
+            // 의상 버튼 - ReusableButton으로 설정
             if (costumeButton != null)
             {
+                var costumeReusableButton = costumeButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (costumeReusableButton == null)
+                {
+                    costumeReusableButton = costumeButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                }
+                costumeReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Costume);
+                
+                // 기존 onClick도 유지 (호환성)
                 costumeButton.onClick.RemoveAllListeners();
                 costumeButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Costume));
+            }
+
+            // 아이템 뽑기 버튼 (선택 사항: 연결만, 동작은 추후)
+            if (itemDrawButton != null)
+            {
+                itemDrawButton.onClick.RemoveAllListeners();
+                itemDrawButton.onClick.AddListener(() =>
+                {
+                    LogDebug("[ItemTabUI] ItemDrawButton 클릭");
+                    if (IsCurrentWormEgg())
+                    {
+                        PopupManager.Instance?.ShowToast("알 단계에서는 착용/뽑기 불가", 1.5f);
+                        return;
+                    }
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.ItemDraw);
+                });
+            }
+
+            // 셔플 버튼 (선택 사항: 연결만, 동작은 추후)
+            if (shuffleButton != null)
+            {
+                shuffleButton.onClick.RemoveAllListeners();
+                shuffleButton.onClick.AddListener(() =>
+                {
+                    LogDebug("[ItemTabUI] ShuffleButton 클릭");
+                    if (IsCurrentWormEgg())
+                    {
+                        PopupManager.Instance?.ShowToast("알 단계에서는 변경 불가", 1.5f);
+                        return;
+                    }
+                });
             }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[ItemTabUI] 버튼 이벤트 설정 중 오류: {ex.Message}");
         }
+    }
+
+    private void RegisterItemManagerEvents()
+    {
+        if (ItemManager.Instance == null) return;
+
+        // 중복 구독 방지
+        ItemManager.Instance.OnItemEquippedEvent -= OnItemEquipped;
+        ItemManager.Instance.OnItemUnequippedEvent -= OnItemUnequipped;
+
+        ItemManager.Instance.OnItemEquippedEvent += OnItemEquipped;
+        ItemManager.Instance.OnItemUnequippedEvent += OnItemUnequipped;
+    }
+
+    private void OnItemEquipped(string itemId, ItemData.ItemType itemType)
+    {
+        RefreshPreview(itemType);
+    }
+
+    private void OnItemUnequipped(string itemId, ItemData.ItemType itemType)
+    {
+        RefreshPreview(itemType);
+    }
+
+    private void RegisterWormManagerEvents()
+    {
+        if (WormManager.Instance == null) return;
+
+        WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
+        WormManager.Instance.OnWormEvolvedEvent -= OnWormEvolved;
+
+        WormManager.Instance.OnCurrentWormChangedEvent += OnCurrentWormChanged;
+        WormManager.Instance.OnWormEvolvedEvent += OnWormEvolved;
+    }
+
+    private void OnCurrentWormChanged(WormData prev, WormData curr)
+    {
+        RefreshAllPreviews();
+    }
+
+    private void OnWormEvolved(WormData worm, int fromStage, int toStage)
+    {
+        RefreshAllPreviews();
+    }
+
+    private System.Collections.IEnumerator WaitForWormManagerAndSubscribe()
+    {
+        // WormManager 준비될 때까지 대기
+        while (WormManager.Instance == null)
+        {
+            yield return null;
+        }
+        // 초기화 완료와 현재 웜 생성 대기(선택)
+        while (WormManager.Instance != null && WormManager.Instance.GetCurrentWorm() == null)
+        {
+            yield return null;
+        }
+
+        RegisterWormManagerEvents();
+        RefreshAllPreviews();
+        UpdateButtonsInteractable();
+        waitWormCoroutine = null;
+    }
+
+    private bool IsCurrentWormEgg()
+    {
+        var worm = WormManager.Instance?.GetCurrentWorm();
+        return worm != null && worm.lifeStage == 0; // 0 = Egg
+    }
+
+    private void UpdateButtonsInteractable()
+    {
+        bool isEgg = IsCurrentWormEgg();
+        if (hatButton != null) hatButton.interactable = !isEgg;
+        if (faceButton != null) faceButton.interactable = !isEgg;
+        if (costumeButton != null) costumeButton.interactable = !isEgg;
     }
 
     /// <summary>
@@ -135,15 +323,27 @@ public class ItemTabUI : MonoBehaviour
 
         try
         {
-            RefreshPreview(ItemData.ItemType.Hat, hatPreviewImage, hatNameText, hatEquippedIcon);
-            RefreshPreview(ItemData.ItemType.Face, facePreviewImage, faceNameText, faceEquippedIcon);
-            RefreshPreview(ItemData.ItemType.Costume, costumePreviewImage, costumeNameText, costumeEquippedIcon);
-            
-            // 오버뷰 렌더러 새로고침
-            if (overViewRenderer != null)
+            if (IsCurrentWormEgg())
             {
-                overViewRenderer.RefreshOverview();
+                // 알 단계: 장착 불가 표기
+                SetUnavailableState(hatPreviewImage, hatNameText);
+                SetUnavailableState(facePreviewImage, faceNameText);
+                SetUnavailableState(costumePreviewImage, costumeNameText);
             }
+            else
+            {
+                // 알이 아님: 아이템 프리뷰/텍스트 표시
+                RefreshPreview(ItemData.ItemType.Hat, hatPreviewImage, hatNameText);
+                RefreshPreview(ItemData.ItemType.Face, facePreviewImage, faceNameText);
+                RefreshPreview(ItemData.ItemType.Costume, costumePreviewImage, costumeNameText);
+            }
+            UpdateButtonsInteractable();
+            
+            // 오버뷰 렌더러 새로고침 - 제거됨
+            // if (overViewRenderer != null)
+            // {
+            //     overViewRenderer.RefreshOverview();
+            // }
 
             LogDebug("[ItemTabUI] 모든 프리뷰 새로고침 완료");
             OnItemTabRefreshedEvent?.Invoke();
@@ -163,24 +363,41 @@ public class ItemTabUI : MonoBehaviour
 
         try
         {
+            if (IsCurrentWormEgg())
+            {
+                switch (itemType)
+                {
+                    case ItemData.ItemType.Hat:
+                        SetUnavailableState(hatPreviewImage, hatNameText);
+                        break;
+                    case ItemData.ItemType.Face:
+                        SetUnavailableState(facePreviewImage, faceNameText);
+                        break;
+                    case ItemData.ItemType.Costume:
+                        SetUnavailableState(costumePreviewImage, costumeNameText);
+                        break;
+                }
+                UpdateButtonsInteractable();
+                return;
+            }
             switch (itemType)
             {
                 case ItemData.ItemType.Hat:
-                    RefreshPreview(ItemData.ItemType.Hat, hatPreviewImage, hatNameText, hatEquippedIcon);
+                    RefreshPreview(ItemData.ItemType.Hat, hatPreviewImage, hatNameText);
                     break;
                 case ItemData.ItemType.Face:
-                    RefreshPreview(ItemData.ItemType.Face, facePreviewImage, faceNameText, faceEquippedIcon);
+                    RefreshPreview(ItemData.ItemType.Face, facePreviewImage, faceNameText);
                     break;
                 case ItemData.ItemType.Costume:
-                    RefreshPreview(ItemData.ItemType.Costume, costumePreviewImage, costumeNameText, costumeEquippedIcon);
+                    RefreshPreview(ItemData.ItemType.Costume, costumePreviewImage, costumeNameText);
                     break;
             }
 
-            // 오버뷰 렌더러 새로고침
-            if (overViewRenderer != null)
-            {
-                overViewRenderer.RefreshOverview();
-            }
+            // 오버뷰 렌더러 새로고침 - 제거됨
+            // if (overViewRenderer != null)
+            // {
+            //     overViewRenderer.RefreshOverview();
+            // }
 
             LogDebug($"[ItemTabUI] {itemType} 프리뷰 새로고침 완료");
         }
@@ -193,34 +410,47 @@ public class ItemTabUI : MonoBehaviour
     /// <summary>
     /// 프리뷰 새로고침 (내부 메서드)
     /// </summary>
-    private void RefreshPreview(ItemData.ItemType type, Image previewImage, TMP_Text nameText, GameObject equippedIcon)
+    private void RefreshPreview(ItemData.ItemType type, Image previewImage, TMP_Text nameText)
     {
         try
         {
+            if (IsCurrentWormEgg())
+            {
+                SetNoneState(previewImage, nameText, type);
+                return;
+            }
             // 현재 착용된 아이템 ID 가져오기
             string itemId = GetEquippedItemId(type);
             var item = ItemManager.Instance?.GetItemById(itemId);
 
             // UI 업데이트
-            if (item != null && item.IsValid)
+            if (item != null && !string.IsNullOrEmpty(item.itemId))
             {
-                // 프리뷰 이미지
+                // 프리뷰 이미지 (SpriteManager에서 스프라이트 조회)
                 if (previewImage != null)
                 {
-                    previewImage.sprite = item.sprite;
+                    Sprite sprite = null;
+                    switch (type)
+                    {
+                        case ItemData.ItemType.Hat:
+                            sprite = SpriteManager.Instance?.GetHatSprite(item.itemId);
+                            break;
+                        case ItemData.ItemType.Face:
+                            sprite = SpriteManager.Instance?.GetFaceSprite(item.itemId);
+                            break;
+                        case ItemData.ItemType.Costume:
+                            sprite = SpriteManager.Instance?.GetCostumeSprite(item.itemId);
+                            break;
+                    }
+
+                    previewImage.sprite = sprite;
                     previewImage.color = Color.white;
                 }
 
                 // 이름 텍스트
                 if (nameText != null)
                 {
-                    nameText.text = item.DisplayName;
-                }
-
-                // 착용 아이콘
-                if (equippedIcon != null)
-                {
-                    equippedIcon.SetActive(true);
+                    nameText.text = item.itemName;
                 }
 
                 // 현재 착용 아이템 저장
@@ -229,21 +459,7 @@ public class ItemTabUI : MonoBehaviour
             else
             {
                 // 아이템이 없는 경우
-                if (previewImage != null)
-                {
-                    previewImage.sprite = null;
-                    previewImage.color = new Color(1f, 1f, 1f, 0.5f); // 반투명
-                }
-
-                if (nameText != null)
-                {
-                    nameText.text = GetDefaultItemName(type);
-                }
-
-                if (equippedIcon != null)
-                {
-                    equippedIcon.SetActive(false);
-                }
+                SetNoneState(previewImage, nameText, type);
 
                 // 현재 착용 아이템에서 제거
                 if (currentEquippedItems.ContainsKey(type))
@@ -258,6 +474,34 @@ public class ItemTabUI : MonoBehaviour
         }
     }
 
+    private void SetNoneState(Image previewImage, TMP_Text nameText, ItemData.ItemType type)
+    {
+        if (previewImage != null)
+        {
+            previewImage.sprite = null;
+            previewImage.color = new Color(1f, 1f, 1f, 0.5f); // 반투명
+        }
+
+        if (nameText != null)
+        {
+            nameText.text = GetDefaultItemName(type);
+        }
+    }
+
+    private void SetUnavailableState(Image previewImage, TMP_Text nameText)
+    {
+        if (previewImage != null)
+        {
+            previewImage.sprite = null;
+            previewImage.color = new Color(1f, 1f, 1f, 0.5f);
+        }
+
+        if (nameText != null)
+        {
+            nameText.text = "장착 불가";
+        }
+    }
+
     /// <summary>
     /// 착용된 아이템 ID 가져오기
     /// </summary>
@@ -265,19 +509,65 @@ public class ItemTabUI : MonoBehaviour
     {
         try
         {
-            if (ItemManager.Instance == null) return "";
+            string itemId = "";
 
-            switch (type)
+            // 1) ItemManager에서 우선 조회
+            if (ItemManager.Instance != null)
             {
-                case ItemData.ItemType.Hat:
-                    return ItemManager.Instance.GetEquippedItemId(ItemData.ItemType.Hat);
-                case ItemData.ItemType.Face:
-                    return ItemManager.Instance.GetEquippedItemId(ItemData.ItemType.Face);
-                case ItemData.ItemType.Costume:
-                    return ItemManager.Instance.GetEquippedItemId(ItemData.ItemType.Costume);
-                default:
-                    return "";
+                try
+                {
+                    itemId = ItemManager.Instance.GetEquippedItemId(type);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[ItemTabUI] ItemManager.GetEquippedItemId 호출 중 오류: {ex.Message}");
+                }
             }
+            else
+            {
+                Debug.LogWarning("[ItemTabUI] ItemManager.Instance가 null입니다.");
+            }
+
+            // 2) 비어있다면 WormData에서 폴백 (현재 웜의 기본 장착값)
+            if (string.IsNullOrEmpty(itemId))
+            {
+                if (WormManager.Instance != null)
+                {
+                    try
+                    {
+                        var worm = WormManager.Instance.GetCurrentWorm();
+                        if (worm != null)
+                        {
+                            switch (type)
+                            {
+                                case ItemData.ItemType.Hat:
+                                    itemId = worm.hatItemId;
+                                    break;
+                                case ItemData.ItemType.Face:
+                                    itemId = worm.faceItemId;
+                                    break;
+                                case ItemData.ItemType.Costume:
+                                    itemId = worm.costumeItemId;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[ItemTabUI] 현재 웜 데이터가 null입니다.");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[ItemTabUI] WormManager.GetCurrentWorm 호출 중 오류: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[ItemTabUI] WormManager.Instance가 null입니다.");
+                }
+            }
+
+            return itemId ?? "";
         }
         catch (System.Exception ex)
         {
@@ -311,7 +601,7 @@ public class ItemTabUI : MonoBehaviour
             ItemData currentItem = null;
             if (currentEquippedItems.TryGetValue(itemType, out currentItem))
             {
-                LogDebug($"[ItemTabUI] {itemType} 아이템 클릭: {currentItem.DisplayName}");
+                LogDebug($"[ItemTabUI] {itemType} 아이템 클릭: {currentItem.itemName}");
             }
             else
             {
@@ -357,15 +647,6 @@ public class ItemTabUI : MonoBehaviour
     }
 
     /// <summary>
-    /// 애니메이션 활성화/비활성화
-    /// </summary>
-    public void SetAnimationEnabled(bool enabled)
-    {
-        enableAnimations = enabled;
-        LogDebug($"[ItemTabUI] 애니메이션 {(enabled ? "활성화" : "비활성화")}");
-    }
-
-    /// <summary>
     /// 탭 정보 반환
     /// </summary>
     public string GetTabInfo()
@@ -377,7 +658,7 @@ public class ItemTabUI : MonoBehaviour
         
         foreach (var kvp in currentEquippedItems)
         {
-            info.AppendLine($"{kvp.Key}: {kvp.Value.DisplayName}");
+            info.AppendLine($"{kvp.Key}: {kvp.Value.itemName}");
         }
 
         return info.ToString();

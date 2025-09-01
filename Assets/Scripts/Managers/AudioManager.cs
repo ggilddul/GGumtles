@@ -52,7 +52,8 @@ public class AudioManager : MonoBehaviour
         Error,
         Success,
         ItemDrop,
-        EarnItem
+        EarnItem,
+        ShakeTree
     }
 
     // 오디오 풀링용 큐
@@ -71,7 +72,7 @@ public class AudioManager : MonoBehaviour
         InitializeSingleton();
     }
 
-    private void Start()
+    public void Initialize()
     {
         InitializeAudioSystem();
     }
@@ -93,26 +94,120 @@ public class AudioManager : MonoBehaviour
     {
         try
         {
-            // 오디오 시스템 초기화 전에 잠시 대기
-            StartCoroutine(InitializeAudioSystemCoroutine());
+            // 이미 초기화된 경우 중복 초기화 방지
+            if (isInitialized)
+            {
+                Debug.LogWarning("[AudioManager] 이미 초기화되어 있습니다.");
+                return;
+            }
+            
+            // FMOD 시스템 초기화 상태 확인
+            try
+            {
+                var config = AudioSettings.GetConfiguration();
+                if (config.sampleRate > 0)
+                {
+                    Debug.Log("[AudioManager] FMOD 시스템이 이미 초기화되어 있습니다.");
+                    // 즉시 초기화 진행
+                    StartCoroutine(InitializeAudioSystemCoroutine());
+                }
+                else
+                {
+                    // FMOD 시스템 초기화 대기
+                    StartCoroutine(WaitForFMODInitialization());
+                }
+            }
+            catch (System.Exception)
+            {
+                // AudioSettings.GetConfiguration() 실패 시 대기
+                StartCoroutine(WaitForFMODInitialization());
+            }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[AudioManager] 초기화 중 오류: {ex.Message}");
+            // 오류 발생 시 기본 설정으로 초기화
+            InitializeWithDefaultSettings();
         }
+    }
+
+    private IEnumerator WaitForFMODInitialization()
+    {
+        int maxWaitTime = 30; // 최대 30초 대기
+        int waitCount = 0;
+        
+        while (waitCount < maxWaitTime)
+        {
+            bool fmodReady = false;
+            
+            try
+            {
+                var config = AudioSettings.GetConfiguration();
+                if (config.sampleRate > 0)
+                {
+                    fmodReady = true;
+                }
+            }
+            catch (System.Exception)
+            {
+                // AudioSettings.GetConfiguration() 실패 시 계속 대기
+            }
+            
+            if (fmodReady)
+            {
+                Debug.Log("[AudioManager] FMOD 시스템 초기화 완료, 오디오 시스템 초기화 시작");
+                yield return StartCoroutine(InitializeAudioSystemCoroutine());
+                yield break;
+            }
+            
+            yield return new WaitForSeconds(0.1f);
+            waitCount++;
+        }
+        
+        Debug.LogWarning("[AudioManager] FMOD 시스템 초기화 시간 초과, 기본 설정으로 초기화");
+        InitializeWithDefaultSettings();
     }
 
     private IEnumerator InitializeAudioSystemCoroutine()
     {
-        // 오디오 시스템이 완전히 초기화될 때까지 대기
+        // 추가 안전 대기
         yield return new WaitForEndOfFrame();
+        yield return new WaitForSeconds(0.2f);
         
-        ValidateAudioSources();
-        InitializeAudioPool();
-        LoadAudioSettings();
-        isInitialized = true;
-        
-        Debug.Log("[AudioManager] 오디오 시스템 초기화 완료");
+        try
+        {
+            ValidateAudioSources();
+            InitializeAudioPool();
+            LoadAudioSettings();
+            isInitialized = true;
+            
+            Debug.Log("[AudioManager] 오디오 시스템 초기화 완료");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AudioManager] 오디오 시스템 초기화 중 오류: {ex.Message}");
+            InitializeWithDefaultSettings();
+        }
+    }
+
+    private void InitializeWithDefaultSettings()
+    {
+        try
+        {
+            // 기본 설정으로 초기화
+            if (bgmSource != null)
+                bgmSource.volume = defaultBGMVolume;
+            if (sfxSource != null)
+                sfxSource.volume = defaultSFXVolume;
+            
+            isInitialized = true;
+            Debug.Log("[AudioManager] 기본 설정으로 초기화 완료");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AudioManager] 기본 설정 초기화 중 오류: {ex.Message}");
+            isInitialized = true; // 강제로 초기화 완료로 설정
+        }
     }
 
     private void ValidateAudioSources()
@@ -185,8 +280,10 @@ public class AudioManager : MonoBehaviour
         return bgmOption switch
         {
             GameSaveData.AudioOption.Off => 0f,
-            GameSaveData.AudioOption.Low => 0.3f,
-            GameSaveData.AudioOption.High => 0.7f,
+            GameSaveData.AudioOption.Low => 0.2f,
+            GameSaveData.AudioOption.Medium => 0.5f,
+            GameSaveData.AudioOption.High => 0.8f,
+            GameSaveData.AudioOption.Max => 1f,
             _ => defaultBGMVolume
         };
     }
@@ -196,8 +293,10 @@ public class AudioManager : MonoBehaviour
         return sfxOption switch
         {
             GameSaveData.AudioOption.Off => 0f,
-            GameSaveData.AudioOption.Low => 0.5f,
-            GameSaveData.AudioOption.High => 1f,
+            GameSaveData.AudioOption.Low => 0.25f,
+            GameSaveData.AudioOption.Medium => 0.5f,
+            GameSaveData.AudioOption.High => 0.75f,
+            GameSaveData.AudioOption.Max => 1f,
             _ => defaultSFXVolume
         };
     }
@@ -207,15 +306,22 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     public void PlaySFX(AudioClip clip)
     {
-        if (!isInitialized || clip == null) return;
+        try
+        {
+            if (!isInitialized || clip == null) return;
 
-        if (sfxSource != null)
-        {
-            sfxSource.PlayOneShot(clip);
+            if (sfxSource != null && sfxSource.isActiveAndEnabled)
+            {
+                sfxSource.PlayOneShot(clip);
+            }
+            else
+            {
+                PlaySFXFromPool(clip);
+            }
         }
-        else
+        catch (System.Exception ex)
         {
-            PlaySFXFromPool(clip);
+            Debug.LogWarning($"[AudioManager] SFX 재생 중 오류: {ex.Message}");
         }
     }
 
@@ -287,28 +393,35 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     public void PlayBGM(AudioClip clip, bool fadeIn = true)
     {
-        if (!isInitialized || clip == null) return;
-
-        if (bgmSource == null)
+        try
         {
-            Debug.LogError("[AudioManager] BGM AudioSource가 없습니다.");
-            return;
+            if (!isInitialized || clip == null) return;
+
+            if (bgmSource == null || !bgmSource.isActiveAndEnabled)
+            {
+                Debug.LogWarning("[AudioManager] BGM AudioSource가 없거나 비활성화되어 있습니다.");
+                return;
+            }
+
+            if (currentBGM == clip && bgmSource.isPlaying) return;
+
+            currentBGM = clip;
+            bgmSource.clip = clip;
+            bgmSource.loop = true;
+
+            if (fadeIn)
+            {
+                StartCoroutine(FadeInBGM());
+            }
+            else
+            {
+                bgmSource.volume = GetBGMVolumeFromSettings(GameSaveManager.Instance?.currentSaveData?.bgmOption ?? GameSaveData.AudioOption.High);
+                bgmSource.Play();
+            }
         }
-
-        if (currentBGM == clip && bgmSource.isPlaying) return;
-
-        currentBGM = clip;
-        bgmSource.clip = clip;
-        bgmSource.loop = true;
-
-        if (fadeIn)
+        catch (System.Exception ex)
         {
-            StartCoroutine(FadeInBGM());
-        }
-        else
-        {
-            bgmSource.volume = GetBGMVolumeFromSettings(GameSaveManager.Instance?.currentSaveData?.bgmOption ?? GameSaveData.AudioOption.High);
-            bgmSource.Play();
+            Debug.LogWarning($"[AudioManager] BGM 재생 중 오류: {ex.Message}");
         }
     }
 
@@ -553,6 +666,26 @@ public class AudioManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        SaveAudioSettings();
+        try
+        {
+            // 모든 오디오 정지
+            StopAllAudio();
+            
+            // 설정 저장 (GameSaveManager가 유효한 경우에만)
+            if (GameSaveManager.Instance != null && GameSaveManager.Instance.currentSaveData != null)
+            {
+                SaveAudioSettings();
+            }
+            
+            // 풀 정리
+            audioSourcePool.Clear();
+            activeAudioSources.Clear();
+            
+            Debug.Log("[AudioManager] 정리 완료");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[AudioManager] 정리 중 오류: {ex.Message}");
+        }
     }
 }
