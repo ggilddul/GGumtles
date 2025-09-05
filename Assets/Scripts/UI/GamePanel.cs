@@ -230,6 +230,13 @@ public class GamePanel : MonoBehaviour
     /// </summary>
     public void ReturnToMainUI()
     {
+        // 게임 종료 시 자동 저장
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SaveGameData();
+            Debug.Log("[GamePanel] 게임 종료 시 자동 저장 완료");
+        }
+        
         // GameUI 비활성화
         if (gameUI != null)
         {

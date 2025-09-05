@@ -14,15 +14,10 @@ namespace GGumtles.UI
         [SerializeField] private Button confirmButton;
         [SerializeField] private Button declineButton;
         
-        [Header("설정")]
+        [Header("디버그")]
         [SerializeField] private bool enableDebugLogs = false;
         
         private ItemData.ItemType selectedItemType;
-        
-        private void Start()
-        {
-            SetupButtons();
-        }
         
         /// <summary>
         /// 팝업 초기화
@@ -38,8 +33,19 @@ namespace GGumtles.UI
                 confirmText.text = $"{itemTypeName}을(를) 뽑으시겠습니까?";
             }
             
-            if (enableDebugLogs)
-                Debug.Log($"[DrawConfirmPopupUI] {itemType} 뽑기 확인 팝업 초기화");
+            // 버튼 설정
+            SetupButtons();
+            
+            LogDebug($"[DrawConfirmPopupUI] {itemType} 뽑기 확인 팝업 초기화");
+        }
+        
+        /// <summary>
+        /// 팝업 닫기
+        /// </summary>
+        public void ClosePopup()
+        {
+            Destroy(gameObject);
+            LogDebug("[DrawConfirmPopupUI] 뽑기 확인 팝업 닫기");
         }
         
         /// <summary>
@@ -50,12 +56,14 @@ namespace GGumtles.UI
             // 확인 버튼
             if (confirmButton != null)
             {
+                confirmButton.onClick.RemoveAllListeners();
                 confirmButton.onClick.AddListener(OnConfirmButtonClicked);
             }
             
             // 취소 버튼
             if (declineButton != null)
             {
+                declineButton.onClick.RemoveAllListeners();
                 declineButton.onClick.AddListener(OnDeclineButtonClicked);
             }
         }
@@ -65,14 +73,16 @@ namespace GGumtles.UI
         /// </summary>
         private void OnConfirmButtonClicked()
         {
-            if (enableDebugLogs)
-                Debug.Log($"[DrawConfirmPopupUI] 확인 버튼 클릭됨 - {selectedItemType}");
+            LogDebug($"[DrawConfirmPopupUI] 확인 버튼 클릭됨 - {selectedItemType}");
             
             // 랜덤 아이템 획득
             ItemData drawnItem = DrawRandomItem(selectedItemType);
             
             // 뽑기 결과 팝업 열기
             PopupManager.Instance?.OpenDrawResultPopup(drawnItem);
+            
+            // 팝업 닫기
+            ClosePopup();
         }
         
         /// <summary>
@@ -80,11 +90,10 @@ namespace GGumtles.UI
         /// </summary>
         private void OnDeclineButtonClicked()
         {
-            if (enableDebugLogs)
-                Debug.Log("[DrawConfirmPopupUI] 취소 버튼 클릭됨");
+            LogDebug("[DrawConfirmPopupUI] 취소 버튼 클릭됨");
             
             // 팝업 닫기
-            PopupManager.Instance?.CancelDrawConfirm();
+            ClosePopup();
         }
         
         /// <summary>
@@ -106,8 +115,7 @@ namespace GGumtles.UI
             // 아이템 획득
             itemManager.AddItem(selectedItem.itemId, 1);
             
-            if (enableDebugLogs)
-                Debug.Log($"[DrawConfirmPopupUI] {selectedItem.itemName} 획득!");
+            LogDebug($"[DrawConfirmPopupUI] {selectedItem.itemName} 획득!");
             
             return selectedItem;
         }
@@ -126,13 +134,12 @@ namespace GGumtles.UI
             };
         }
         
-        private void OnDestroy()
+        private void LogDebug(string message)
         {
-            // 이벤트 리스너 제거
-            if (confirmButton != null)
-                confirmButton.onClick.RemoveAllListeners();
-            if (declineButton != null)
-                declineButton.onClick.RemoveAllListeners();
+            if (enableDebugLogs)
+            {
+                Debug.Log(message);
+            }
         }
     }
 }

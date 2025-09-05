@@ -22,9 +22,12 @@ public class SpriteManager : MonoBehaviour
     [Header("아이템 스프라이트")]
     [SerializeField] private List<ItemSpriteSet> itemSpriteSets;
     
+    [Header("업적 스프라이트")]
+    [SerializeField] private Sprite[] achievementSprites;  // 업적 아이콘 스프라이트들
+    
     [Header("스프라이트 합성 설정")]
     [SerializeField] private Vector2 baseWormSize = new Vector2(300f, 300f);  // 기본 벌레 크기
-    [SerializeField] private float[] lifeStageScales = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 1.0f, 0.8f };  // 생명주기별 크기 배율 (성체가 1.0, 사망은 0.8)
+    [SerializeField] private float[] lifeStageScales = { 0.3f, 0.4f, 0.55f, 0.7f, 0.85f, 1.0f, 1.0f };  // 생명주기별 크기 배율 (성체가 1.0, 사망은 0.8)
     
     [Header("캐시 설정")]
     [SerializeField] private bool enableCaching = true;
@@ -508,16 +511,38 @@ public class SpriteManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 업적 스프라이트 가져오기 (기본 스프라이트 반환)
+    /// 업적 스프라이트 가져오기
     /// </summary>
     public Sprite GetAchievementSprite(string achievementId, bool isUnlocked = true)
     {
-        // 간단한 구현: 기본 스프라이트 반환
-        // 실제로는 achievementSpriteSets에서 찾아야 함
         if (enableDebugLogs)
         {
-            Debug.Log($"[SpriteManager] GetAchievementSprite 호출됨: {achievementId}, {isUnlocked} - 기본 스프라이트 반환");
+            Debug.Log($"[SpriteManager] GetAchievementSprite 호출됨: {achievementId}, {isUnlocked}");
         }
+        
+        // 1. achievementSprites에서 해당 업적 스프라이트 찾기
+        if (achievementSprites != null && achievementSprites.Length > 0)
+        {
+            // achievementId를 기반으로 인덱스 계산 (간단한 해시 방식)
+            int index = Mathf.Abs(achievementId.GetHashCode()) % achievementSprites.Length;
+            if (achievementSprites[index] != null)
+            {
+                return achievementSprites[index];
+            }
+        }
+        
+        // 2. achievementSprites가 없으면 기본 아이콘 반환 (아이템 스프라이트 사용)
+        if (itemSpriteSets != null && itemSpriteSets.Count > 0 && itemSpriteSets[0].sprite != null)
+        {
+            return itemSpriteSets[0].sprite;
+        }
+        
+        // 3. 마지막으로 lifeStageSprites 사용 (알 스프라이트 대신)
+        if (lifeStageSprites != null && lifeStageSprites.Length > 1)
+        {
+            return lifeStageSprites[1]; // 알(0) 대신 다음 단계(1) 사용
+        }
+        
         return null;
     }
 

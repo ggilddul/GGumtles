@@ -375,6 +375,9 @@ public class PopupManager : MonoBehaviour
                     SetupDrawResultPopup(popupObject, itemData);
                 }
                 break;
+            case PopupType.GFC:
+                SetupGfcPopup(popupObject);
+                break;
             case PopupType.Achievement1:
                 if (data is int achievement1Index)
                 {
@@ -430,7 +433,7 @@ public class PopupManager : MonoBehaviour
             // 진화 단계 정보는 WormManager에서 가져와야 함
             int fromStage = 0;
             int toStage = wormData.lifeStage;
-            popup.OpenPopup(wormData, fromStage, toStage);
+            popup.Initialize(wormData, fromStage, toStage);
         }
     }
 
@@ -439,7 +442,7 @@ public class PopupManager : MonoBehaviour
         var popup = popupObject.GetComponent<WormDiePopupUI>();
         if (popup != null)
         {
-            popup.OpenPopup(wormData);
+            popup.Initialize(wormData);
         }
     }
 
@@ -452,8 +455,28 @@ public class PopupManager : MonoBehaviour
 
     private void SetupItemPopup(GameObject popupObject, ItemData.ItemType itemPopupType)
     {
-        // ItemSelectionPopupUI 제거됨 - 단순화
-        Debug.Log($"[PopupManager] ItemSelectionPopupUI 제거됨: {itemPopupType}");
+        var itemSlotUI = popupObject.GetComponent<ItemSlotUI>();
+        if (itemSlotUI != null)
+        {
+            itemSlotUI.Initialize(itemPopupType);
+        }
+        else
+        {
+            Debug.LogWarning($"[PopupManager] ItemSlotUI 컴포넌트를 찾을 수 없습니다: {popupObject.name}");
+        }
+    }
+
+    private void SetupGfcPopup(GameObject popupObject)
+    {
+        // WormFamilyManager에 GFC 팝업이 열렸음을 알림
+        if (WormFamilyManager.Instance != null)
+        {
+            WormFamilyManager.Instance.HandleGfcPopupOpened(popupObject);
+        }
+        else
+        {
+            Debug.LogWarning("[PopupManager] WormFamilyManager를 찾을 수 없습니다.");
+        }
     }
 
     private void SetupDrawConfirmPopup(GameObject popupObject, ItemData.ItemType drawItemType)
@@ -562,6 +585,12 @@ public class PopupManager : MonoBehaviour
     private void ClosePopupInternal(PopupInfo popupInfo)
     {
         if (popupInfo == null || popupInfo.popupObject == null) return;
+
+        // GFC 팝업이 닫힐 때 WormFamilyManager에 알림
+        if (popupInfo.type == PopupType.GFC && WormFamilyManager.Instance != null)
+        {
+            WormFamilyManager.Instance.HandleGfcPopupClosed();
+        }
 
         // 팝업 비활성화 (null 체크 추가)
         popupInfo.popupObject.SetActive(false);

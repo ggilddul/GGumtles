@@ -14,7 +14,6 @@ namespace GGumtles.UI
         OpenPopup,
         ClosePopup,
 
-        CreateLayoutElement,
         PlaySFX,
         EquipItem,
         ShakeTree,
@@ -31,12 +30,21 @@ namespace GGumtles.UI
         // 아이템 팝업 관련 (통합)
         OpenItemPopup,  // parameter로 ItemType 구분
         
-        // 업적 팝업 관련
-        OpenAchievement1Popup,  // parameter로 Achievement Index 구분
-        OpenAchievement2Popup,  // parameter로 Achievement Index 구분
+        // 업적 팝업 관련 (통합)
+        OpenAchievementPopup,  // parameter로 Achievement Index 구분 (해금 상태에 따라 Achievement1/2 자동 선택)
         
-        // 게임 관련
-        StartGame
+        StartGame,
+        
+        // GFC 팝업 관련
+        OpenGfcPopup,
+        
+        // 알 발견 팝업 관련
+        ConfirmEggFound,  // 알 발견 확인 - 벌레 생성 및 나이 증가
+        
+        // 벌레 사망 팝업 관련
+        WormDieConfirm,  // 벌레 사망 확인 - EggFound 팝업 열기
+
+        QuitGame  // 게임 종료 - MainUI로 돌아가기
     }
 
     public class ReusableButton : MonoBehaviour
@@ -83,11 +91,42 @@ namespace GGumtles.UI
         /// </summary>
         private void OnButtonClicked()
         {
+            // 사운드 재생을 가장 먼저 처리 (딜레이 최소화)
+            PlayButtonClickSound();
+            
             OnButtonClickedEvent?.Invoke(buttonAction, actionParameter);
             OnThisButtonClickedEvent?.Invoke(buttonAction, actionParameter); // 개별 이벤트 발생
             HandleButtonAction();
         }
         
+        /// <summary>
+        /// 버튼 클릭 사운드 재생
+        /// </summary>
+        private void PlayButtonClickSound()
+        {
+            // 특별한 사운드가 필요한 액션들만 예외 처리
+            switch (buttonAction)
+            {
+                case ButtonAction.PlaySFX:
+                    // PlaySFX 액션은 HandleButtonAction에서 처리
+                    return;
+                case ButtonAction.ShakeTree:
+                    AudioManager.Instance?.PlaySFX(AudioManager.SFXType.ShakeTree);
+                    return;
+                case ButtonAction.CollectAcorn:
+                case ButtonAction.CollectDiamond:
+                    AudioManager.Instance?.PlaySFX(AudioManager.SFXType.EarnItem);
+                    return;
+                case ButtonAction.FeedWorm:
+                    AudioManager.Instance?.PlaySFX(AudioManager.SFXType.FeedWorm);
+                    return;
+                default:
+                    // 기본 버튼 클릭 사운드
+                    AudioManager.Instance?.PlayButtonSound(0);
+                    break;
+            }
+        }
+
         /// <summary>
         /// 버튼 액션 처리
         /// </summary>
@@ -107,13 +146,6 @@ namespace GGumtles.UI
                     PopupManager.Instance?.CloseAllPopups();
                     break;
                     
-                
-                    
-                case ButtonAction.CreateLayoutElement:
-                    // UIPrefabManager 삭제로 인해 직접 처리 불가
-                    Debug.LogWarning("[ReusableButton] CreateLayoutElement는 더 이상 지원되지 않습니다.");
-                    break;
-                    
                 case ButtonAction.PlaySFX:
                     AudioManager.Instance?.PlaySFX((AudioManager.SFXType)actionParameter);
                     break;
@@ -124,16 +156,7 @@ namespace GGumtles.UI
                     break;
                     
                 case ButtonAction.ShakeTree:
-                    // TreeController에서 나무 흔들기 실행 (사운드 포함)
-                    var treeController = FindFirstObjectByType<TreeController>();
-                    if (treeController != null)
-                    {
-                        treeController.ShakeTree();
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[ReusableButton] TreeController를 찾을 수 없습니다.");
-                    }
+                    TreeController.Instance?.ShakeTree();
                     break;
                     
                 case ButtonAction.CollectAcorn:
@@ -182,15 +205,32 @@ namespace GGumtles.UI
                     PopupManager.Instance?.OpenItemPopup(itemTypeParam);
                     break;
                     
-                // 업적 팝업 관련
-                case ButtonAction.OpenAchievement1Popup:
-                    int achievement1Index = actionParameter;
-                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievement1Index);
-                    break;
-                    
-                case ButtonAction.OpenAchievement2Popup:
-                    int achievement2Index = actionParameter;
-                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievement2Index);
+                // 업적 팝업 관련 (통합)
+                case ButtonAction.OpenAchievementPopup:
+                    int achievementIndex = actionParameter;
+                    // AchievementManager에서 해금 상태 확인하여 적절한 팝업 열기
+                    if (AchievementManager.Instance != null)
+                    {
+                        var allDefinitions = AchievementManager.Instance.GetAllDefinitions();
+                        // -1이면 첫 번째 업적(0) 열기, 그 외에는 지정된 인덱스 사용
+                        if (achievementIndex == -1)
+                        {
+                            achievementIndex = 0;
+                        }
+                        if (achievementIndex >= 0 && achievementIndex < allDefinitions.Count)
+                        {
+                            var achievementData = allDefinitions[achievementIndex];
+                            bool isUnlocked = AchievementManager.Instance.IsUnlocked(achievementData.achievementId);
+                            if (isUnlocked)
+                            {
+                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                            }
+                            else
+                            {
+                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                            }
+                        }
+                    }
                     break;
                     
                 case ButtonAction.StartGame:
@@ -204,6 +244,70 @@ namespace GGumtles.UI
                     {
                         Debug.LogWarning("[ReusableButton] GamePanel을 찾을 수 없습니다.");
                     }
+                    break;
+                    
+                case ButtonAction.QuitGame:
+                    // GamePanel에서 게임 종료 처리
+                    var quitGamePanel = FindFirstObjectByType<GamePanel>();
+                    if (quitGamePanel != null)
+                    {
+                        quitGamePanel.ReturnToMainUI();
+                        Debug.Log("[ReusableButton] 게임 종료 - MainUI로 돌아가기");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] GamePanel을 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                // GFC 팝업 관련
+                case ButtonAction.OpenGfcPopup:
+                    // WormFamilyManager에서 GFC 팝업 열기
+                    var wormFamilyManager = FindFirstObjectByType<WormFamilyManager>();
+                    if (wormFamilyManager != null)
+                    {
+                        wormFamilyManager.OpenGfcPopup();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] WormFamilyManager를 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                // 알 발견 팝업 관련
+                case ButtonAction.ConfirmEggFound:
+                    // WormManager에서 새 벌레 생성
+                    if (WormManager.Instance != null)
+                    {
+                        // 새 벌레 생성
+                        WormManager.Instance.CreateNewWorm();
+                        
+                        // 기존 벌레가 있을 때만 나이 증가 (최초 접속 시에는 벌레가 없으므로 생략)
+                        if (WormManager.Instance.TotalWorms > 1)
+                        {
+                            WormManager.Instance.AgeAllWorms();
+                        }
+                        
+                        // EggFound 팝업 닫기
+                        PopupManager.Instance?.CloseCustomPopup(PopupManager.PopupType.EggFound);
+                        
+                        Debug.Log("[ReusableButton] 알 발견 확인 - 새 벌레 생성 완료");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ReusableButton] WormManager를 찾을 수 없습니다.");
+                    }
+                    break;
+                    
+                // 벌레 사망 팝업 관련
+                case ButtonAction.WormDieConfirm:
+                    // WormDie 팝업 닫기
+                    PopupManager.Instance?.CloseCustomPopup(PopupManager.PopupType.Die);
+                    
+                    // EggFound 팝업 열기
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.EggFound, PopupManager.PopupPriority.Normal);
+                    
+                    Debug.Log("[ReusableButton] 벌레 사망 확인 - EggFound 팝업 열기");
                     break;
                     
                 default:

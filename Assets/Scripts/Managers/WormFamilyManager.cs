@@ -135,7 +135,43 @@ public class WormFamilyManager : MonoBehaviour
         generationNodes.Clear();
         currentWorm = null;
         
+        // WormManager 이벤트 구독
+        SubscribeToWormManagerEvents();
+        
         LogDebug("[WormFamilyManager] 가계도 시스템 초기화 완료");
+    }
+
+    /// <summary>
+    /// WormManager 이벤트 구독
+    /// </summary>
+    private void SubscribeToWormManagerEvents()
+    {
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.OnWormCreatedEvent += OnWormCreated;
+            WormManager.Instance.OnCurrentWormChangedEvent += OnCurrentWormChanged;
+            LogDebug("[WormFamilyManager] WormManager 이벤트 구독 완료");
+        }
+        else
+        {
+            LogDebug("[WormFamilyManager] WormManager가 아직 초기화되지 않았습니다. 나중에 구독합니다.");
+            StartCoroutine(SubscribeToWormManagerWhenReady());
+        }
+    }
+
+    /// <summary>
+    /// WormManager가 준비될 때까지 기다린 후 이벤트 구독
+    /// </summary>
+    private System.Collections.IEnumerator SubscribeToWormManagerWhenReady()
+    {
+        yield return new WaitUntil(() => WormManager.Instance != null);
+        
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.OnWormCreatedEvent += OnWormCreated;
+            WormManager.Instance.OnCurrentWormChangedEvent += OnCurrentWormChanged;
+            LogDebug("[WormFamilyManager] WormManager 이벤트 구독 완료 (지연)");
+        }
     }
 
     #endregion
@@ -283,8 +319,34 @@ public class WormFamilyManager : MonoBehaviour
 
         try
         {
-            // GFC 팝업 생성
-            currentGfcPopup = Instantiate(gfcPopupPrefab, gfcPopupParent);
+            // PopupManager를 통해 GFC 팝업 열기
+            if (PopupManager.Instance != null)
+            {
+                PopupManager.Instance.OpenPopup(PopupManager.PopupType.GFC, PopupManager.PopupPriority.Normal);
+                LogDebug("[WormFamilyManager] PopupManager를 통해 GFC 팝업 열기 요청");
+            }
+            else
+            {
+                Debug.LogError("[WormFamilyManager] PopupManager를 찾을 수 없습니다.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormFamilyManager] GFC 팝업 열기 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// PopupManager에서 GFC 팝업이 열렸을 때 호출
+    /// </summary>
+    public void HandleGfcPopupOpened(GameObject popupObject)
+    {
+        if (popupObject == null) return;
+
+        try
+        {
+            currentGfcPopup = popupObject;
+            isPopupOpen = true;
             
             // Content Transform 찾기
             contentTransform = FindContentTransform(currentGfcPopup);
@@ -294,12 +356,10 @@ public class WormFamilyManager : MonoBehaviour
                 return;
             }
 
-            isPopupOpen = true;
-
             // 기존 가계도 노드들 생성
             CreateAllWormNodes();
 
-            LogDebug("[WormFamilyManager] GFC 팝업 열기 완료");
+            LogDebug("[WormFamilyManager] GFC 팝업 열기 완료 (PopupManager를 통해)");
             
             // 이벤트 발생
             OnGfcPopupOpenedEvent?.Invoke();
@@ -323,19 +383,37 @@ public class WormFamilyManager : MonoBehaviour
 
         try
         {
-            // 팝업 제거
-            if (currentGfcPopup != null)
+            // PopupManager를 통해 GFC 팝업 닫기
+            if (PopupManager.Instance != null)
             {
-                Destroy(currentGfcPopup);
-                currentGfcPopup = null;
+                PopupManager.Instance.CloseCustomPopup(PopupManager.PopupType.GFC);
+                LogDebug("[WormFamilyManager] PopupManager를 통해 GFC 팝업 닫기 요청");
             }
+            else
+            {
+                Debug.LogError("[WormFamilyManager] PopupManager를 찾을 수 없습니다.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormFamilyManager] GFC 팝업 닫기 중 오류: {ex.Message}");
+        }
+    }
 
+    /// <summary>
+    /// PopupManager에서 GFC 팝업이 닫혔을 때 호출
+    /// </summary>
+    public void HandleGfcPopupClosed()
+    {
+        try
+        {
             // UI 정리
             ClearWormNodes();
             contentTransform = null;
+            currentGfcPopup = null;
             isPopupOpen = false;
 
-            LogDebug("[WormFamilyManager] GFC 팝업 닫기 완료");
+            LogDebug("[WormFamilyManager] GFC 팝업 닫기 완료 (PopupManager를 통해)");
             
             // 이벤트 발생
             OnGfcPopupClosedEvent?.Invoke();
@@ -616,10 +694,93 @@ public class WormFamilyManager : MonoBehaviour
 
     #endregion
 
+    #region WormManager 이벤트 핸들러
+
+    /// <summary>
+    /// 벌레 생성 이벤트 핸들러
+    /// </summary>
+    private void OnWormCreated(WormData newWorm)
+    {
+        if (newWorm == null) return;
+
+        try
+        {
+            // 가계도에 새 벌레 추가
+            AddWormToFamilyHistory(newWorm);
+            
+            // 현재 벌레 업데이트
+            currentWorm = newWorm;
+            
+            LogDebug($"[WormFamilyManager] 새 벌레가 가계도에 추가됨: {newWorm.name} (세대 {newWorm.generation})");
+            
+            // 이벤트 발생
+            OnGenerationAddedEvent?.Invoke(newWorm, null);
+            OnFamilyTreeUpdatedEvent?.Invoke(familyHistory);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormFamilyManager] 벌레 생성 이벤트 처리 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 현재 벌레 변경 이벤트 핸들러
+    /// </summary>
+    private void OnCurrentWormChanged(WormData previousWorm, WormData newWorm)
+    {
+        if (newWorm == null) return;
+
+        try
+        {
+            // 현재 벌레 업데이트
+            currentWorm = newWorm;
+            
+            LogDebug($"[WormFamilyManager] 현재 벌레 변경: {previousWorm?.name ?? "없음"} → {newWorm.name}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormFamilyManager] 현재 벌레 변경 이벤트 처리 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 가계도에 벌레 추가
+    /// </summary>
+    private void AddWormToFamilyHistory(WormData worm)
+    {
+        if (worm == null) return;
+
+        // 이미 같은 세대의 벌레가 있는지 확인
+        var existingWorm = familyHistory.FirstOrDefault(w => w.generation == worm.generation);
+        if (existingWorm != null)
+        {
+            // 기존 벌레를 새 벌레로 교체
+            familyHistory.Remove(existingWorm);
+            LogDebug($"[WormFamilyManager] 세대 {worm.generation}의 기존 벌레 교체: {existingWorm.name} → {worm.name}");
+        }
+
+        // 새 벌레 추가
+        familyHistory.Add(worm);
+        
+        // 세대별로 정렬
+        familyHistory = familyHistory.OrderBy(w => w.generation).ToList();
+        
+        LogDebug($"[WormFamilyManager] 가계도에 벌레 추가 완료: {worm.name} (세대 {worm.generation})");
+    }
+
+    #endregion
+
     #region 이벤트 정리
 
     private void OnDestroy()
     {
+        // WormManager 이벤트 구독 해제
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.OnWormCreatedEvent -= OnWormCreated;
+            WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
+        }
+
         // 이벤트 초기화
         OnFamilyTreeUpdatedEvent = null;
         OnGenerationAddedEvent = null;

@@ -13,11 +13,9 @@ public class TabManager : MonoBehaviour
     [SerializeField] private List<Button> tabButtons;
     [SerializeField] private List<TabData> tabDataList;
     
-
-    
-    // [Header("UI 설정")] // 사용되지 않는 필드들과 함께 주석 처리
-    // [SerializeField] private float defaultHeight = 240f; // 사용되지 않음
-    // [SerializeField] private float activeHeight = 320f; // 사용되지 않음
+    [Header("UI 설정")]
+    [SerializeField] private float defaultHeight = 240f;
+    [SerializeField] private float activeHeight = 320f;
 
     // 탭 타입 열거형
     public enum TabType
@@ -268,8 +266,15 @@ public class TabManager : MonoBehaviour
             tabInfo.panel.SetActive(true);
         }
 
-        // 버튼 스타일 변경은 Inspector에서 직접 설정
-        // 여기서는 패널 활성화만 처리
+        // 버튼 높이 조절 (활성 탭은 더 크게)
+        if (tabInfo.button != null)
+        {
+            var rectTransform = tabInfo.button.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x, activeHeight);
+            }
+        }
 
         // 탭 데이터의 onTabOpen 콜백 실행
         if (tabDataList != null && tabInfo.index < tabDataList.Count)
@@ -293,8 +298,15 @@ public class TabManager : MonoBehaviour
             tabInfo.panel.SetActive(false);
         }
 
-        // 버튼 스타일 복원은 Inspector에서 직접 설정
-        // 여기서는 패널 비활성화만 처리
+        // 버튼 높이 조절 (비활성 탭은 기본 크기로)
+        if (tabInfo.button != null)
+        {
+            var rectTransform = tabInfo.button.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.sizeDelta = new Vector2(rectTransform.sizeDelta.x, defaultHeight);
+            }
+        }
 
         // 탭 데이터의 onTabClose 콜백 실행
         if (tabDataList != null && tabInfo.index < tabDataList.Count)

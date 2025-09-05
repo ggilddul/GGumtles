@@ -14,8 +14,8 @@ namespace GGumtles.UI
         [SerializeField] private GameObject achievementButtonPrefab;   // AchievementButtonUI 프리팹
         
         [Header("색상 설정")]
-        [SerializeField] private Color unlockedColor = Color.white;    // 해금된 업적 색상
-        [SerializeField] private Color lockedColor = new Color(0.8f, 0.8f, 0.8f, 1f); // 잠금된 업적 색상
+        [SerializeField] private Color unlockedColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);    // 해금된 업적 색상
+        [SerializeField] private Color lockedColor = new Color(0.9f, 0.9f, 0.9f, 1.0f); // 잠금된 업적 색상
         
         [Header("디버그")]
         [SerializeField] private bool enableDebugLogs = false;
@@ -109,14 +109,11 @@ namespace GGumtles.UI
                     icon = SpriteManager.Instance.GetAchievementSprite(definition.achievementId, isUnlocked);
                 }
                 
-                // 버튼 설정
-                buttonUI.Set(definition, icon, activeButtons.Count, isUnlocked);
+                // 버튼 초기화
+                buttonUI.Initialize(definition, activeButtons.Count);
                 
                 // 색상 설정
                 SetButtonColor(buttonUI, isUnlocked);
-                
-                // 클릭 이벤트 연결
-                buttonUI.OnAchievementButtonClickedEvent += OnAchievementButtonClicked;
                 
                 activeButtons.Add(buttonUI);
                 
@@ -165,23 +162,6 @@ namespace GGumtles.UI
             }
         }
         
-        /// <summary>
-        /// 업적 버튼 클릭 처리
-        /// </summary>
-        private void OnAchievementButtonClicked(AchievementButtonUI button, int index)
-        {
-            try
-            {
-                LogDebug($"[AchieveTabUI] 업적 버튼 클릭: {button.AchievementData?.achievementTitle}");
-                
-                // 여기에 클릭 시 동작 추가 (예: 상세 정보 팝업 표시)
-                // PopupManager.Instance?.OpenAchievementDetailPopup(button.AchievementData);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[AchieveTabUI] 업적 버튼 클릭 처리 중 오류: {ex.Message}");
-            }
-        }
         
         /// <summary>
         /// 기존 버튼들 제거
@@ -194,7 +174,6 @@ namespace GGumtles.UI
                 {
                     if (button != null)
                     {
-                        button.OnAchievementButtonClickedEvent -= OnAchievementButtonClicked;
                         Destroy(button.gameObject);
                     }
                 }

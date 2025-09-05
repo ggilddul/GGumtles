@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using GGumtles.UI;
 
 public class AchievementButtonUI : MonoBehaviour
 {
@@ -9,87 +8,34 @@ public class AchievementButtonUI : MonoBehaviour
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private Button button;
+    
+    // 자동 찾기용 필드
+    private bool componentsInitialized = false;
 
-    [Header("설정")]
-    [SerializeField] private bool enableSound = true;
+    [Header("디버그")]
     [SerializeField] private bool enableDebugLogs = false;
 
     // 데이터
     private int achievementIndex;
     private AchievementData achievementData;
-    private bool isUnlocked = false; // 단순화: 해금 여부만 저장
+    private bool isUnlocked = false;
 
     // 프로퍼티
     public int AchievementIndex => achievementIndex;
     public AchievementData AchievementData => achievementData;
     public bool IsUnlocked => isUnlocked;
 
-    // 이벤트 정의
-    public delegate void OnAchievementButtonClicked(AchievementButtonUI button, int index);
-    public event OnAchievementButtonClicked OnAchievementButtonClickedEvent;
-
-    private void Awake()
-    {
-        InitializeComponents();
-    }
-
-    private void InitializeComponents()
-    {
-        try
-        {
-            // 자동으로 컴포넌트 찾기
-            if (iconImage == null)
-                iconImage = GetComponentInChildren<Image>();
-            
-            if (titleText == null)
-                titleText = GetComponentInChildren<TMP_Text>();
-            
-            if (button == null)
-                button = GetComponent<Button>();
-
-            if (button == null)
-                button = gameObject.AddComponent<Button>();
-
-            LogDebug("[AchievementButtonUI] 컴포넌트 초기화 완료");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[AchievementButtonUI] 컴포넌트 초기화 중 오류: {ex.Message}");
-        }
-    }
-
     /// <summary>
-    /// 업적 버튼 설정 (단순화)
+    /// 업적 버튼 초기화
     /// </summary>
-    public void Set(AchievementData definition, Sprite iconSprite, int index, bool unlocked)
+    public void Initialize(AchievementData definition, int index)
     {
         try
         {
+            // 컴포넌트 자동 찾기 (Instantiate된 경우)
+            InitializeComponents();
+            
             achievementIndex = index;
-            achievementData = definition;
-            isUnlocked = unlocked;
-
-            // UI 업데이트
-            UpdateUI(definition, iconSprite, unlocked);
-
-            // 버튼 이벤트 설정
-            SetupButtonEvents();
-
-            LogDebug($"[AchievementButtonUI] 업적 버튼 설정 완료: {definition?.achievementTitle}");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[AchievementButtonUI] 업적 버튼 설정 중 오류: {ex.Message}");
-        }
-    }
-    
-    /// <summary>
-    /// 업적 데이터로 간단 설정 (MainUI에서 사용)
-    /// </summary>
-    public void SetupAchievement(AchievementData definition)
-    {
-        try
-        {
             achievementData = definition;
             
             // AchievementManager에서 해금 여부 가져오기
@@ -99,41 +45,116 @@ public class AchievementButtonUI : MonoBehaviour
                 isUnlocked = achievementManager.IsUnlocked(definition.achievementId);
             }
             
-            // 아이콘 가져오기
-            Sprite iconSprite = null;
-            if (SpriteManager.Instance != null)
-            {
-                iconSprite = SpriteManager.Instance.GetAchievementSprite(definition.achievementId);
-            }
-            
             // UI 업데이트
-            UpdateUI(definition, iconSprite, isUnlocked);
+            UpdateUI();
             
             // 버튼 이벤트 설정
             SetupButtonEvents();
             
-            LogDebug($"[AchievementButtonUI] 업적 설정 완료: {definition?.achievementTitle}");
+            LogDebug($"[AchievementButtonUI] 업적 버튼 초기화: {definition?.achievementTitle}");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[AchievementButtonUI] 업적 설정 중 오류: {ex.Message}");
+            Debug.LogError($"[AchievementButtonUI] 업적 버튼 초기화 중 오류: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// UI 업데이트 (단순화)
+    /// 컴포넌트 자동 찾기
     /// </summary>
-    private void UpdateUI(AchievementData definition, Sprite iconSprite, bool unlocked)
+    private void InitializeComponents()
     {
+        if (componentsInitialized) return;
+        
+        try
+        {
+            // titleText 자동 찾기
+            if (titleText == null)
+            {
+                titleText = GetComponentInChildren<TMP_Text>();
+                if (titleText == null)
+                {
+                    // "TitleText" 또는 "NameText" 이름으로 찾기
+                    Transform titleTransform = transform.Find("TitleText");
+                    if (titleTransform == null) titleTransform = transform.Find("NameText");
+                    if (titleTransform == null) titleTransform = transform.Find("AchievementNameText");
+                    if (titleTransform != null)
+                    {
+                        titleText = titleTransform.GetComponent<TMP_Text>();
+                    }
+                }
+            }
+            
+            // iconImage 자동 찾기
+            if (iconImage == null)
+            {
+                iconImage = GetComponentInChildren<Image>();
+                if (iconImage == null)
+                {
+                    // "IconImage" 또는 "Icon" 이름으로 찾기
+                    Transform iconTransform = transform.Find("IconImage");
+                    if (iconTransform == null) iconTransform = transform.Find("Icon");
+                    if (iconTransform != null)
+                    {
+                        iconImage = iconTransform.GetComponent<Image>();
+                    }
+                }
+            }
+            
+            // button 자동 찾기
+            if (button == null)
+            {
+                button = GetComponent<Button>();
+                if (button == null)
+                {
+                    button = gameObject.AddComponent<Button>();
+                }
+            }
+            
+            componentsInitialized = true;
+            LogDebug($"[AchievementButtonUI] 컴포넌트 자동 찾기 완료 - titleText: {titleText != null}, iconImage: {iconImage != null}, button: {button != null}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AchievementButtonUI] 컴포넌트 자동 찾기 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// UI 업데이트
+    /// </summary>
+    private void UpdateUI()
+    {
+        if (achievementData == null) return;
+
+        // 제목 텍스트
         if (titleText != null)
         {
-            titleText.text = definition?.achievementTitle ?? "알 수 없는 업적";
+            titleText.text = achievementData.achievementTitle;
+            LogDebug($"[AchievementButtonUI] 제목 텍스트 설정: {achievementData.achievementTitle}");
+        }
+        else
+        {
+            Debug.LogWarning($"[AchievementButtonUI] titleText가 null입니다. Inspector에서 할당하거나 자식 오브젝트에 TMP_Text를 추가하세요.");
         }
 
+        // 아이콘 이미지
         if (iconImage != null)
         {
+            // SpriteManager에서 아이콘 가져오기
+            Sprite iconSprite = null;
+            if (SpriteManager.Instance != null)
+            {
+                iconSprite = SpriteManager.Instance.GetAchievementSprite(achievementData.achievementId);
+            }
+            
             iconImage.sprite = iconSprite;
-            iconImage.color = unlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f, 1f);
+            iconImage.color = isUnlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f, 1f);
+            LogDebug($"[AchievementButtonUI] 아이콘 이미지 설정: {iconSprite != null}");
+        }
+        else
+        {
+            Debug.LogWarning($"[AchievementButtonUI] iconImage가 null입니다. Inspector에서 할당하거나 자식 오브젝트에 Image를 추가하세요.");
         }
     }
 
@@ -163,22 +184,22 @@ public class AchievementButtonUI : MonoBehaviour
         try
         {
             // 사운드 재생
-            if (enableSound)
-            {
-                AudioManager.Instance?.PlaySFX(AudioManager.SFXType.Button);
-            }
+            AudioManager.Instance?.PlayButtonSound(0);
 
-            // 업적 UI 생성 - UIPrefabManager 삭제로 인해 직접 처리 불가
-            Debug.Log($"[AchievementButtonUI] 업적 버튼 클릭: {achievementData?.achievementTitle}");
-            
-            // 업적 팝업 열기
+            // 업적 팝업 열기 (해금 상태에 따라 구분)
             if (achievementData != null)
             {
-                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                if (isUnlocked)
+                {
+                    // 해금된 업적: Achievement1 팝업
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                }
+                else
+                {
+                    // 잠금된 업적: Achievement2 팝업
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                }
             }
-
-            // 이벤트 발생
-            OnAchievementButtonClickedEvent?.Invoke(this, achievementIndex);
 
             LogDebug($"[AchievementButtonUI] 업적 버튼 클릭: {achievementData?.achievementTitle}");
         }
@@ -189,7 +210,7 @@ public class AchievementButtonUI : MonoBehaviour
     }
 
     /// <summary>
-    /// 업적 상태 업데이트 (단순화)
+    /// 업적 상태 업데이트
     /// </summary>
     public void UpdateStatus(bool unlocked)
     {
@@ -219,30 +240,6 @@ public class AchievementButtonUI : MonoBehaviour
         {
             button.interactable = interactable;
         }
-    }
-
-    /// <summary>
-    /// 사운드 활성화/비활성화
-    /// </summary>
-    public void SetSoundEnabled(bool enabled)
-    {
-        enableSound = enabled;
-        LogDebug($"[AchievementButtonUI] 사운드 {(enabled ? "활성화" : "비활성화")}");
-    }
-
-    /// <summary>
-    /// 버튼 정보 반환
-    /// </summary>
-    public string GetButtonInfo()
-    {
-        var info = new System.Text.StringBuilder();
-        info.AppendLine($"[AchievementButtonUI 정보]");
-        info.AppendLine($"업적: {achievementData?.achievementTitle ?? "없음"}");
-        info.AppendLine($"인덱스: {achievementIndex}");
-        info.AppendLine($"해금됨: {isUnlocked}");
-        info.AppendLine($"사운드: {(enableSound ? "활성화" : "비활성화")}");
-
-        return info.ToString();
     }
 
     private void LogDebug(string message)

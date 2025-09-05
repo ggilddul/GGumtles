@@ -345,6 +345,14 @@ public class GameSaveManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 저장된 벌레 데이터 반환
+    /// </summary>
+    public List<WormData> GetWormData()
+    {
+        return currentSaveData?.wormList ?? new List<WormData>();
+    }
+
+    /// <summary>
     /// 저장 데이터 백업 생성
     /// </summary>
     public void CreateBackup()

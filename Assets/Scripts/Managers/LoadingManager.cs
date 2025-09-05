@@ -162,10 +162,22 @@ public class LoadingManager : MonoBehaviour
             AudioManager.Instance.Initialize();
         }
 
-        // WormManager 초기화
+        // PopupManager 초기화 (WormManager보다 먼저)
+        if (PopupManager.Instance != null)
+        {
+            PopupManager.Instance.Initialize();
+        }
+
+        // WormManager 초기화 (저장된 벌레 데이터와 함께)
         if (WormManager.Instance != null)
         {
+            // 먼저 기본 초기화
             WormManager.Instance.Initialize();
+            
+            // 그 다음 저장된 벌레 데이터로 초기화
+            var savedWorms = GameSaveManager.Instance?.GetWormData() ?? new List<WormData>();
+            WormManager.Instance.Initialize(savedWorms);
+            Debug.Log($"[LoadingManager] WormManager 초기화 - 저장된 벌레: {savedWorms.Count}마리");
         }
 
         // ItemManager 초기화
@@ -186,10 +198,13 @@ public class LoadingManager : MonoBehaviour
             MapManager.Instance.Initialize();
         }
 
-        // WormFamilyManager 초기화
+        // WormFamilyManager 초기화 (저장된 벌레 데이터와 함께)
         if (WormFamilyManager.Instance != null)
         {
             WormFamilyManager.Instance.Initialize();
+            var savedWorms = GameSaveManager.Instance?.GetWormData() ?? new List<WormData>();
+            WormFamilyManager.Instance.InitializeFamilyTree(savedWorms);
+            Debug.Log($"[LoadingManager] WormFamilyManager 초기화 - 저장된 벌레: {savedWorms.Count}마리");
         }
 
         // TabManager 초기화
@@ -210,11 +225,6 @@ public class LoadingManager : MonoBehaviour
             TopBarManager.Instance.Initialize();
         }
 
-        // PopupManager 초기화
-        if (PopupManager.Instance != null)
-        {
-            PopupManager.Instance.Initialize();
-        }
     }
 
     public void ShowLoading(LoadingType type)

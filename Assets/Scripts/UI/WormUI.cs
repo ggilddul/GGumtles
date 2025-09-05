@@ -94,9 +94,21 @@ public class WormUI : MonoBehaviour
         {
             if (wormImage != null)
             {
-                // WormData에서 생명주기 스프라이트 가져오기
-                Sprite wormSprite = GetLifeStageSprite(currentWormData.lifeStage);
-                wormImage.sprite = wormSprite;
+                // WormData에서 완성된 벌레 스프라이트 가져오기 (스케일 포함)
+                var completedWormSprite = GetWormSprite(currentWormData);
+                if (completedWormSprite != null)
+                {
+                    wormImage.sprite = completedWormSprite.sprite;
+                    
+                    // 스케일 적용
+                    wormImage.rectTransform.localScale = Vector3.one * completedWormSprite.scale;
+                }
+                else
+                {
+                    // 폴백: 생명주기 스프라이트만 사용
+                    Sprite wormSprite = GetLifeStageSprite(currentWormData.lifeStage);
+                    wormImage.sprite = wormSprite;
+                }
                 
                 // 사망 상태에 따른 색상 조정
                 if (!currentWormData.isAlive)
@@ -140,6 +152,22 @@ public class WormUI : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// 완성된 벌레 스프라이트 가져오기 (스케일 포함)
+    /// </summary>
+    private SpriteManager.CompletedWormSprite GetWormSprite(WormData wormData)
+    {
+        try
+        {
+            return SpriteManager.Instance?.CreateCompletedWormSprite(wormData);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormUI] 벌레 스프라이트 로드 중 오류: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>
     /// 생명주기 스프라이트 가져오기
     /// </summary>

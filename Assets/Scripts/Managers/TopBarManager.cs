@@ -163,6 +163,28 @@ public class TopBarManager : MonoBehaviour
             // 초기 시간 강제 업데이트
             StartCoroutine(ForceInitialTimeUpdate());
         }
+        
+        // WormManager가 준비되면 현재 벌레 이름 설정
+        yield return new WaitUntil(() => WormManager.Instance != null);
+        if (WormManager.Instance != null)
+        {
+            // 벌레 변경 이벤트 구독
+            WormManager.Instance.OnCurrentWormChangedEvent += OnCurrentWormChanged;
+            Debug.Log("[TopBarManager] WormManager 벌레 변경 이벤트 구독 완료");
+            
+            // 현재 벌레 이름으로 초기화
+            var currentWorm = WormManager.Instance.GetCurrentWorm();
+            if (currentWorm != null)
+            {
+                UpdateCurrentWormName(currentWorm.name);
+                Debug.Log($"[TopBarManager] 초기 벌레 이름 설정: {currentWorm.name}");
+            }
+            else
+            {
+                UpdateCurrentWormName("");
+                Debug.Log("[TopBarManager] 초기 벌레가 없습니다.");
+            }
+        }
     }
 
     private IEnumerator ForceInitialTimeUpdate()
@@ -264,12 +286,28 @@ public class TopBarManager : MonoBehaviour
         {
             GameManager.Instance.OnResourceChangedEvent += OnResourceChanged;
         }
+        
+        // WormManager 이벤트는 SubscribeToTabManagerWhenReady()에서 구독
     }
 
     private void OnResourceChanged(int acornCount, int diamondCount)
     {
         UpdateAcornCount(acornCount);
         UpdateDiamondCount(diamondCount);
+    }
+
+    private void OnCurrentWormChanged(WormData previousWorm, WormData newWorm)
+    {
+        if (newWorm != null)
+        {
+            UpdateCurrentWormName(newWorm.name);
+            Debug.Log($"[TopBarManager] 벌레 이름 업데이트: {newWorm.name}");
+        }
+        else
+        {
+            UpdateCurrentWormName("벌레 없음");
+            Debug.Log("[TopBarManager] 현재 벌레가 없습니다.");
+        }
     }
 
     private void OnGameTimeChanged(int hour, int minute, string ampm)
@@ -787,6 +825,11 @@ public class TopBarManager : MonoBehaviour
         {
             GameManager.Instance.OnResourceChangedEvent -= OnResourceChanged;
             GameManager.Instance.OnGameTimeChangedEvent -= OnGameTimeChanged;
+        }
+        
+        if (WormManager.Instance != null)
+        {
+            WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
         }
     }
 }

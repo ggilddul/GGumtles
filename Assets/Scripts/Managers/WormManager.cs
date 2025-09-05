@@ -136,14 +136,59 @@ public class WormManager : MonoBehaviour
 
                 // 가장 최근 벌레를 현재 벌레로 설정
                 SetCurrentWorm(wormList.LastOrDefault());
+                LogDebug($"[WormManager] {savedWormList.Count}개의 저장된 벌레 로드 완료");
             }
-
-            LogDebug($"[WormManager] {savedWormList?.Count ?? 0}개의 저장된 벌레 로드 완료");
+            else
+            {
+                // 저장된 벌레가 없으면 EggFound 팝업 띄우기
+                LogDebug("[WormManager] 저장된 벌레가 없습니다. EggFound 팝업을 띄웁니다.");
+                ShowEggFoundPopupForFirstTime();
+            }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[WormManager] 초기화 중 오류: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 최초 접속 시 EggFound 팝업 표시
+    /// </summary>
+    private void ShowEggFoundPopupForFirstTime()
+    {
+        try
+        {
+            // PopupManager가 준비될 때까지 대기
+            if (PopupManager.Instance == null)
+            {
+                StartCoroutine(WaitForPopupManagerAndShowEggFound());
+            }
+            else
+            {
+                // EggFound 팝업 열기
+                PopupManager.Instance.OpenPopup(PopupManager.PopupType.EggFound, PopupManager.PopupPriority.Critical);
+                LogDebug("[WormManager] 최초 접속 - EggFound 팝업 표시");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormManager] EggFound 팝업 표시 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// PopupManager가 준비될 때까지 대기 후 EggFound 팝업 표시
+    /// </summary>
+    private System.Collections.IEnumerator WaitForPopupManagerAndShowEggFound()
+    {
+        while (PopupManager.Instance == null)
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        // EggFound 팝업 열기
+        PopupManager.Instance.OpenPopup(PopupManager.PopupType.EggFound, PopupManager.PopupPriority.Critical);
+        LogDebug("[WormManager] 최초 접속 - EggFound 팝업 표시 (지연)");
     }
 
     /// <summary>
@@ -271,6 +316,69 @@ public class WormManager : MonoBehaviour
         IncrementAgeAndEvaluate(0);
     }
 
+    /// <summary>
+    /// 나이에 따른 생명주기 단계 계산
+    /// </summary>
+    private int GetLifeStageByAge(int age, int lifespan = 2880)
+    {
+        // 진화 임계값(분): 0(Egg) → 1:30 → 2:120 → 3:360 → 4:720 → 5:1440 → 6:수명
+        if (age >= lifespan)
+        {
+            return 6; // 사망
+        }
+        else if (age >= 1440)
+        {
+            return 5;
+        }
+        else if (age >= 720)
+        {
+            return 4;
+        }
+        else if (age >= 360)
+        {
+            return 3;
+        }
+        else if (age >= 120)
+        {
+            return 2;
+        }
+        else if (age >= 30)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0; // 알
+        }
+    }
+
+    /// <summary>
+    /// 특정 벌레의 진화 체크
+    /// </summary>
+    private void CheckEvolutionForWorm(WormData worm)
+    {
+        if (worm == null || !worm.isAlive) return;
+
+        try
+        {
+            int previousStage = worm.lifeStage;
+            if (previousStage == 6) return; // 이미 최종 단계
+
+            // 나이에 따른 진화 체크
+            int newStage = GetLifeStageByAge(worm.age, worm.lifespan);
+            if (newStage > previousStage)
+            {
+                worm.lifeStage = newStage;
+                HandleWormEvolved(worm, previousStage, newStage);
+                LogDebug($"[WormManager] 벌레 진화: {worm.name} ({previousStage} → {newStage})");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormManager] 벌레 진화 체크 중 오류: {ex.Message}");
+        }
+    }
+
     private void IncrementAgeAndEvaluate(int minutes)
     {
         if (currentWorm == null || !currentWorm.isAlive) return;
@@ -371,8 +479,8 @@ public class WormManager : MonoBehaviour
     /// </summary>
     private void HandleWormEvolved(WormData worm, int fromStage, int toStage)
     {
-                    LogDebug($"[WormManager] 벌레 진화: {worm.name} ({fromStage} → {toStage})");
-
+        LogDebug($"[WormManager] 벌레 진화: {worm.name} ({fromStage} → {toStage})");
+        
         // 이벤트 발생
         OnWormEvolvedEvent?.Invoke(worm, fromStage, toStage);
 
@@ -399,10 +507,54 @@ public class WormManager : MonoBehaviour
         // 팝업 표시
         PopupManager.Instance?.OpenDiePopup(worm);
 
-        // 새 벌레 생성 (세대 증가)
-        if (enableAutoDeath)
+        // 사운드 재생
+        AudioManager.Instance?.PlaySFX(AudioManager.SFXType.Error);
+
+        // 자동 새 벌레 생성 비활성화 - 사용자가 WormDieConfirm 버튼을 눌러야 EggFound 팝업이 열림
+        // if (enableAutoDeath)
+        // {
+        //     CreateNewWorm(worm.generation + 1);
+        // }
+    }
+
+    /// <summary>
+    /// 모든 벌레의 나이 증가
+    /// </summary>
+    public void AgeAllWorms()
+    {
+        if (!isInitialized)
         {
-            CreateNewWorm(worm.generation + 1);
+            Debug.LogWarning("[WormManager] 아직 초기화되지 않았습니다.");
+            return;
+        }
+
+        try
+        {
+            var wormsToAge = new List<WormData>(wormDictionary.Values);
+            
+            foreach (var worm in wormsToAge)
+            {
+                if (worm != null)
+                {
+                    worm.age++;
+                    LogDebug($"[WormManager] 벌레 나이 증가: {worm.name} -> {worm.age}일");
+                    
+                    // 진화 체크 (개별 벌레에 대해)
+                    CheckEvolutionForWorm(worm);
+                }
+            }
+            
+            // 데이터 저장 (GameSaveManager를 통해)
+            if (GameSaveManager.Instance != null)
+            {
+                GameSaveManager.Instance.SaveGame();
+            }
+            
+            LogDebug($"[WormManager] 모든 벌레 나이 증가 완료: {wormsToAge.Count}마리");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[WormManager] 벌레 나이 증가 중 오류: {ex.Message}");
         }
     }
 

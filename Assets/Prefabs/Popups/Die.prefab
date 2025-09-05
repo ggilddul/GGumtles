@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3586757755784986702}
+  - component: {fileID: 1551021867512626068}
   m_Layer: 5
   m_Name: Die
   m_TagString: Untagged
@@ -40,6 +41,22 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 960, y: 800}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1551021867512626068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1249540601261103478}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e49051a1f485434398e358af2000c55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  wormImage: {fileID: 3038207802807181580}
+  nameText: {fileID: 8301378186416714930}
+  ageText: {fileID: 2606997484721592312}
+  enableDebugLogs: 0
 --- !u!1 &1566173112695481308
 GameObject:
   m_ObjectHideFlags: 0
@@ -927,7 +944,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 25, y: -260}
+  m_AnchoredPosition: {x: 25, y: -270}
   m_SizeDelta: {x: 350, y: 280}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &9122970736909884751
@@ -1130,10 +1147,10 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_HighlightedColor: {r: 1, g: 1, b: 1, a: 1}
+    m_PressedColor: {r: 0.9411765, g: 0.9411765, b: 0.9411765, a: 1}
+    m_SelectedColor: {r: 1, g: 1, b: 1, a: 1}
+    m_DisabledColor: {r: 1, g: 1, b: 1, a: 1}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
@@ -1179,9 +1196,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttonAction: 3
+  buttonAction: 19
   actionParameter: -1
-  enableDebugLogs: 0
 --- !u!1 &9107333810080749651
 GameObject:
   m_ObjectHideFlags: 0
@@ -1216,7 +1232,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 25, y: -95}
+  m_AnchoredPosition: {x: 25, y: -100}
   m_SizeDelta: {x: 350, y: 80}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &9068041122059796147

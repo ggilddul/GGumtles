@@ -45,15 +45,14 @@ public class AudioManager : MonoBehaviour
     // SFX 타입 열거형
     public enum SFXType
     {
-        Button,
-        Collect,
+        ShakeTree,
+        EarnItem,
         Achievement,
         Evolve,
-        Error,
-        Success,
+        Snare,
         ItemDrop,
-        EarnItem,
-        ShakeTree
+        FeedWorm,
+        Error
     }
 
     // 오디오 풀링용 큐

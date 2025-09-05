@@ -115,8 +115,9 @@ public class GameManager : MonoBehaviour
         
         if (saveData.wormList.Count == 0)
         {
-            WormManager.Instance.CreateNewWorm(1);
-            Debug.Log("[GameManager] 새로운 벌레 생성");
+            // 벌레가 없으면 WormManager에서 EggFound 팝업을 띄우도록 함
+            // CreateNewWorm()은 사용자가 ConfirmEggFound 버튼을 눌렀을 때만 실행
+            Debug.Log("[GameManager] 저장된 벌레가 없습니다. WormManager에서 EggFound 팝업을 처리합니다.");
         }
         else
         {
@@ -261,8 +262,19 @@ public class GameManager : MonoBehaviour
     {
         if (mapManager == null) return;
 
-        // 맵 배경 업데이트는 MapManager에서 자체적으로 처리
-        mapManager.UpdateMapBackground();
+        // 현재 시간에 따른 맵 페이즈 결정
+        SpriteManager.MapPhase currentPhase = GetCurrentMapPhase();
+        
+        // 맵 페이즈가 변경되었으면 MapManager에 알림
+        if (MapManager.Instance != null && MapManager.Instance.CurrentMapPhase != currentPhase)
+        {
+            MapManager.Instance.ChangeMapPhase(currentPhase);
+        }
+        else
+        {
+            // 페이즈가 변경되지 않았어도 배경 업데이트
+            mapManager.UpdateMapBackground();
+        }
     }
 
     private SpriteManager.MapPhase GetCurrentMapPhase()
