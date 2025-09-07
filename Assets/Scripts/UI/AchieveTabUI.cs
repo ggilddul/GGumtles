@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
 namespace GGumtles.UI
 {
@@ -18,13 +21,74 @@ namespace GGumtles.UI
         [SerializeField] private Color lockedColor = new Color(0.9f, 0.9f, 0.9f, 1.0f); // 잠금된 업적 색상
         
         [Header("디버그")]
-        [SerializeField] private bool enableDebugLogs = false;
+        [SerializeField] private bool enableDebugLogs = true;
         
         private List<AchievementButtonUI> activeButtons = new List<AchievementButtonUI>();
+        private bool isInitialized = false;
         
         private void Start()
         {
-            InitializeAchievementList();
+            StartCoroutine(WaitForManagersAndInitialize());
+        }
+        
+        /// <summary>
+        /// 매니저들이 초기화될 때까지 대기한 후 업적 목록 초기화
+        /// </summary>
+        private System.Collections.IEnumerator WaitForManagersAndInitialize()
+        {
+            LogDebug("[AchieveTabUI] 매니저 초기화 대기 시작");
+            
+            // AchievementManager 인스턴스 대기
+            while (AchievementManager.Instance == null)
+            {
+                LogDebug("[AchieveTabUI] AchievementManager.Instance 대기 중...");
+                yield return null;
+            }
+            LogDebug("[AchieveTabUI] AchievementManager.Instance 확인됨");
+            
+            // AchievementManager 초기화 대기
+            while (!AchievementManager.Instance.IsInitialized)
+            {
+                LogDebug("[AchieveTabUI] AchievementManager 초기화 대기 중...");
+                yield return null;
+            }
+            LogDebug("[AchieveTabUI] AchievementManager 초기화 완료");
+            
+            // SpriteManager 인스턴스 대기
+            while (SpriteManager.Instance == null)
+            {
+                LogDebug("[AchieveTabUI] SpriteManager.Instance 대기 중...");
+                yield return null;
+            }
+            LogDebug("[AchieveTabUI] SpriteManager.Instance 확인됨");
+            
+            // 이제 안전하게 초기화
+            if (!isInitialized)
+            {
+                InitializeAchievementList();
+                isInitialized = true;
+                LogDebug("[AchieveTabUI] 업적 목록 초기화 완료");
+            }
+        }
+        
+        /// <summary>
+        /// 외부에서 강제 초기화할 수 있는 메서드
+        /// </summary>
+        public void ForceInitialize()
+        {
+            if (!isInitialized)
+            {
+                // GameObject가 비활성화된 경우 직접 초기화
+                if (!gameObject.activeInHierarchy)
+                {
+                    InitializeAchievementList();
+                    isInitialized = true;
+                }
+                else
+                {
+                    StartCoroutine(WaitForManagersAndInitialize());
+                }
+            }
         }
         
         /// <summary>
@@ -60,7 +124,10 @@ namespace GGumtles.UI
         /// </summary>
         public void CreateAchievementList()
         {
+            LogDebug("[AchieveTabUI] CreateAchievementList 시작");
+            
             ClearExistingButtons();
+            LogDebug("[AchieveTabUI] 기존 버튼들 제거 완료");
             
             if (AchievementManager.Instance == null)
             {
@@ -69,9 +136,18 @@ namespace GGumtles.UI
             }
             
             var definitions = AchievementManager.Instance.GetAllDefinitions();
+            LogDebug($"[AchieveTabUI] AchievementManager에서 업적 정의 가져오기: {definitions?.Count ?? 0}개");
             
-            foreach (var definition in definitions)
+            if (definitions == null || definitions.Count == 0)
             {
+                LogDebug("[AchieveTabUI] 업적 정의가 없습니다.");
+                return;
+            }
+            
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                LogDebug($"[AchieveTabUI] 업적 {i+1}/{definitions.Count} 생성 시작: {definition.achievementTitle}");
                 CreateAchievementButton(definition);
             }
             
@@ -88,9 +164,15 @@ namespace GGumtles.UI
         {
             try
             {
+                LogDebug($"[AchieveTabUI] CreateAchievementButton 시작: {definition.achievementTitle}");
+                
                 // 프리팹 인스턴스 생성
+                LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성: {achievementButtonPrefab?.name}");
                 GameObject buttonObj = Instantiate(achievementButtonPrefab, contentParent);
+                LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성 완료: {buttonObj?.name}");
+                
                 AchievementButtonUI buttonUI = buttonObj.GetComponent<AchievementButtonUI>();
+                LogDebug($"[AchieveTabUI] AchievementButtonUI 컴포넌트 찾기: {buttonUI != null}");
                 
                 if (buttonUI == null)
                 {
@@ -101,23 +183,32 @@ namespace GGumtles.UI
                 
                 // 해금 여부 확인
                 bool isUnlocked = AchievementManager.Instance.IsUnlocked(definition.achievementId);
+                LogDebug($"[AchieveTabUI] 해금 여부 확인: {isUnlocked}");
                 
                 // 아이콘 가져오기 (SpriteManager에서)
                 Sprite icon = null;
                 if (SpriteManager.Instance != null)
                 {
                     icon = SpriteManager.Instance.GetAchievementSprite(definition.achievementId, isUnlocked);
+                    LogDebug($"[AchieveTabUI] 아이콘 가져오기: {icon != null}");
+                }
+                else
+                {
+                    LogDebug("[AchieveTabUI] SpriteManager.Instance가 null입니다");
                 }
                 
                 // 버튼 초기화
+                LogDebug($"[AchieveTabUI] 버튼 초기화 시작: {definition.achievementTitle}");
                 buttonUI.Initialize(definition, activeButtons.Count);
+                LogDebug($"[AchieveTabUI] 버튼 초기화 완료: {definition.achievementTitle}");
                 
                 // 색상 설정
                 SetButtonColor(buttonUI, isUnlocked);
+                LogDebug($"[AchieveTabUI] 색상 설정 완료");
                 
                 activeButtons.Add(buttonUI);
                 
-                LogDebug($"[AchieveTabUI] 업적 버튼 생성: {definition.achievementTitle} (해금: {isUnlocked})");
+                LogDebug($"[AchieveTabUI] 업적 버튼 생성 완료: {definition.achievementTitle} (해금: {isUnlocked})");
             }
             catch (System.Exception ex)
             {

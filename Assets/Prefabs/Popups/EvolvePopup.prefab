@@ -53,11 +53,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0bc2d5def9c5546ef9f001be7e789935, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nameText: {fileID: 0}
   beforeText: {fileID: 6526438704416536200}
   afterText: {fileID: 8301378186416714930}
-  ageText: {fileID: 7343443986371840827}
-  beforeImage: {fileID: 0}
+  ageText: {fileID: 2606997484721592312}
   afterImage: {fileID: 2860146671261683284}
   enableDebugLogs: 0
 --- !u!1 &1566173112695481308
@@ -422,7 +420,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.9539686, g: 1, b: 0.8254717, a: 1}
+  m_Color: {r: 0.759434, g: 1, b: 0.88773584, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

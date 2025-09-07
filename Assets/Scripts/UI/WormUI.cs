@@ -1,12 +1,17 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-/// <summary>
-/// 웜 정보를 표시하는 통합 UI 클래스
-/// LeafWormUI와 WormNodeUI를 대체합니다.
-/// </summary>
-public class WormUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    /// <summary>
+    /// 웜 정보를 표시하는 통합 UI 클래스
+    /// LeafWormUI와 WormNodeUI를 대체합니다.
+    /// </summary>
+    public class WormUI : MonoBehaviour
 {
     [Header("웜 이미지")]
     [SerializeField] private Image wormImage;               // 웜 생명주기 이미지
@@ -216,5 +221,6 @@ public class WormUI : MonoBehaviour
     private void OnDestroy()
     {
         // 정리 작업 없음
+    }
     }
 }

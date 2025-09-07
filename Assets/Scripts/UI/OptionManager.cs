@@ -1,8 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-public class OptionManager : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class OptionManager : MonoBehaviour
 {
     [Header("오디오 설정")]
     [SerializeField] private Slider sfxSlider;
@@ -591,5 +595,6 @@ public class OptionManager : MonoBehaviour
         OnOptionChangedEvent = null;
         OnSettingsSavedEvent = null;
         OnSettingsLoadedEvent = null;
+    }
     }
 }

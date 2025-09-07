@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
 
 namespace GGumtles.UI
 {

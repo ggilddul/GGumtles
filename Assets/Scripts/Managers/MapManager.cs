@@ -3,8 +3,12 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq; // Added for .Any()
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class MapManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class MapManager : MonoBehaviour
 {
     public static MapManager Instance { get; private set; }
 
@@ -559,5 +563,6 @@ public class MapManager : MonoBehaviour
         // 이벤트 초기화
         OnMapChangedEvent = null;
         OnMapPhaseChangedEvent = null;
+    }
     }
 }

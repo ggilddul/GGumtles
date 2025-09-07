@@ -1,8 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class AchievementUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class AchievementUI : MonoBehaviour
 {
     [Header("UI 컴포넌트")]
     [SerializeField] private Image iconImage;
@@ -536,5 +541,6 @@ public class AchievementUI : MonoBehaviour
         }
 
         OnAchievementUIUpdatedEvent = null;
+    }
     }
 }

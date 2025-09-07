@@ -1,7 +1,9 @@
 using UnityEngine;
 using System.Collections;
 
-public class TreeController : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class TreeController : MonoBehaviour
 {
     public static TreeController Instance { get; private set; }
 
@@ -115,5 +117,6 @@ public class TreeController : MonoBehaviour
         {
             Debug.Log(message);
         }
+    }
     }
 }

@@ -1,10 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
+using GGumtles.Data;
 using System.Linq;
 using System;
 using GGumtles.UI;
+using GGumtles.Managers;
 
-public class AchievementManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class AchievementManager : MonoBehaviour
 {
     public static AchievementManager Instance { get; private set; }
 
@@ -491,5 +495,6 @@ public class AchievementManager : MonoBehaviour
         }
 
         Debug.Log("[AchievementManager] 모든 업적이 리셋되었습니다.");
+    }
     }
 }

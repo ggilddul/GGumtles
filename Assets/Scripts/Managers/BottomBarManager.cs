@@ -4,12 +4,15 @@ using TMPro;
 using GGumtles.UI;
 using System.Collections;
 using System.Collections.Generic;
+using GGumtles.Managers;
 
-/// <summary>
-/// 하단 바 UI를 관리하는 매니저
-/// TabBar와 ADBar 중 어떤 것을 표시할지 결정하는 스위처 역할
-/// </summary>
-public class BottomBarManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    /// <summary>
+    /// 하단 바 UI를 관리하는 매니저
+    /// TabBar와 ADBar 중 어떤 것을 표시할지 결정하는 스위처 역할
+    /// </summary>
+    public class BottomBarManager : MonoBehaviour
     {
         public static BottomBarManager Instance { get; private set; }
 
@@ -357,3 +360,4 @@ public class BottomBarManager : MonoBehaviour
             LogDebug("[BottomBarManager] 파괴됨");
         }
     }
+}

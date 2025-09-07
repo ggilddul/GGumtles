@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
 
 namespace GGumtles.UI
 {
@@ -100,11 +102,65 @@ namespace GGumtles.UI
         }
         
         /// <summary>
-        /// 버튼 클릭 사운드 재생
+        /// 버튼 클릭 사운드 재생 (PlayOneShot 사용으로 딜레이 최소화)
         /// </summary>
         private void PlayButtonClickSound()
         {
-            // 특별한 사운드가 필요한 액션들만 예외 처리
+            // AudioManager의 sfxSource를 직접 사용하여 PlayOneShot으로 즉시 재생
+            if (AudioManager.Instance?.sfxSource != null && AudioManager.Instance.sfxSource.isActiveAndEnabled)
+            {
+                AudioClip clipToPlay = GetButtonSoundClip();
+                if (clipToPlay != null)
+                {
+                    AudioManager.Instance.sfxSource.PlayOneShot(clipToPlay);
+                    return;
+                }
+            }
+            
+            // sfxSource가 사용 불가능한 경우 기존 방식 사용
+            PlayButtonClickSoundFallback();
+        }
+        
+        /// <summary>
+        /// 버튼 액션에 맞는 사운드 클립 반환
+        /// </summary>
+        private AudioClip GetButtonSoundClip()
+        {
+            if (AudioManager.Instance?.buttonClips == null) return null;
+            
+            switch (buttonAction)
+            {
+                case ButtonAction.PlaySFX:
+                    // PlaySFX 액션은 HandleButtonAction에서 처리
+                    return null;
+                case ButtonAction.ShakeTree:
+                    if (AudioManager.Instance.sfxClips != null && AudioManager.Instance.sfxClips.Length > 0)
+                        return AudioManager.Instance.sfxClips[0]; // ShakeTree = 0
+                    break;
+                case ButtonAction.CollectAcorn:
+                case ButtonAction.CollectDiamond:
+                    if (AudioManager.Instance.sfxClips != null && AudioManager.Instance.sfxClips.Length > 1)
+                        return AudioManager.Instance.sfxClips[1]; // EarnItem = 1
+                    break;
+                case ButtonAction.FeedWorm:
+                    if (AudioManager.Instance.sfxClips != null && AudioManager.Instance.sfxClips.Length > 5)
+                        return AudioManager.Instance.sfxClips[5]; // FeedWorm = 5
+                    break;
+                default:
+                    // 기본 버튼 클릭 사운드
+                    if (AudioManager.Instance.buttonClips.Length > 0)
+                        return AudioManager.Instance.buttonClips[0];
+                    break;
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// 기존 방식으로 사운드 재생 (fallback)
+        /// </summary>
+        private void PlayButtonClickSoundFallback()
+        {
             switch (buttonAction)
             {
                 case ButtonAction.PlaySFX:
@@ -135,7 +191,7 @@ namespace GGumtles.UI
             switch (buttonAction)
             {
                 case ButtonAction.OpenTab:
-                    TabManager.Instance?.SwitchToTab(actionParameter);
+                    TabManager.Instance?.OpenTab(actionParameter);
                     break;
                     
                 case ButtonAction.OpenPopup:
@@ -234,44 +290,33 @@ namespace GGumtles.UI
                     break;
                     
                 case ButtonAction.StartGame:
-                    // GamePanel에서 게임 시작 처리
-                    var gamePanel = FindFirstObjectByType<GamePanel>();
-                    if (gamePanel != null)
+                    // MinigameManager에서 게임 시작 처리
+                    if (MinigameManager.Instance != null)
                     {
-                        gamePanel.StartGame(actionParameter);
+                        MinigameManager.Instance.StartGame(actionParameter);
                     }
                     else
                     {
-                        Debug.LogWarning("[ReusableButton] GamePanel을 찾을 수 없습니다.");
+                        Debug.LogWarning("[ReusableButton] MinigameManager.Instance가 null입니다.");
                     }
                     break;
                     
                 case ButtonAction.QuitGame:
-                    // GamePanel에서 게임 종료 처리
-                    var quitGamePanel = FindFirstObjectByType<GamePanel>();
-                    if (quitGamePanel != null)
+                    // MinigameManager에서 게임 종료 처리
+                    if (MinigameManager.Instance != null)
                     {
-                        quitGamePanel.ReturnToMainUI();
-                        Debug.Log("[ReusableButton] 게임 종료 - MainUI로 돌아가기");
+                        MinigameManager.Instance.QuitGame();
                     }
                     else
                     {
-                        Debug.LogWarning("[ReusableButton] GamePanel을 찾을 수 없습니다.");
+                        Debug.LogWarning("[ReusableButton] MinigameManager.Instance가 null입니다.");
                     }
                     break;
                     
                 // GFC 팝업 관련
                 case ButtonAction.OpenGfcPopup:
-                    // WormFamilyManager에서 GFC 팝업 열기
-                    var wormFamilyManager = FindFirstObjectByType<WormFamilyManager>();
-                    if (wormFamilyManager != null)
-                    {
-                        wormFamilyManager.OpenGfcPopup();
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[ReusableButton] WormFamilyManager를 찾을 수 없습니다.");
-                    }
+                    // PopupManager를 통해 GFC 팝업 열기
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.GFC, PopupManager.PopupPriority.Normal);
                     break;
                     
                 // 알 발견 팝업 관련

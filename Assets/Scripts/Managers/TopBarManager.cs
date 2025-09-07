@@ -3,8 +3,12 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-public class TopBarManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class TopBarManager : MonoBehaviour
 {
     public static TopBarManager Instance { get; private set; }
 
@@ -552,7 +556,7 @@ public class TopBarManager : MonoBehaviour
 
         currentDiamondCount = newCount;
 
-        if (currentTopBarType == TopBarType.NonGameState && diamondCountText != null)
+        if (diamondCountText != null && diamondCountText.gameObject.activeInHierarchy)
         {
             UpdateCountText(diamondCountText, newCount);
         }
@@ -567,7 +571,7 @@ public class TopBarManager : MonoBehaviour
 
         currentMedalCount = newCount;
 
-        if (currentTopBarType == TopBarType.NonGameState && medalCountText != null)
+        if (medalCountText != null && medalCountText.gameObject.activeInHierarchy)
         {
             UpdateCountText(medalCountText, newCount);
         }
@@ -610,37 +614,74 @@ public class TopBarManager : MonoBehaviour
     }
 
     /// <summary>
-    /// DiamondCount 버튼 활성화 (Item 탭용)
+    /// 탭에 맞는 CountButton 활성화
     /// </summary>
-    public void ActivateDiamondCountButton()
+    /// <param name="tabIndex">탭 인덱스 (0-4)</param>
+    public void ActivateCountButtonForTab(int tabIndex)
     {
-        // 모든 카운트 버튼 비활성화
+        // 모든 카운트 텍스트와 버튼 비활성화
+        SetCountTextVisible(acornCountText, false);
+        SetCountTextVisible(diamondCountText, false);
+        SetCountTextVisible(medalCountText, false);
+        
         SetCountButtonVisible(acornCountPopupButton, false);
         SetCountButtonVisible(diamondCountPopupButton, false);
         SetCountButtonVisible(medalCountPopupButton, false);
         
-        // DiamondCount 버튼만 활성화
-        SetCountButtonVisible(diamondCountPopupButton, true);
-        UpdateDiamondCount(currentDiamondCount);
-        
-        Debug.Log("[TopBarManager] DiamondCount 버튼 활성화 완료");
+        // 탭에 맞는 CountText와 CountButton 활성화
+        switch (tabIndex)
+        {
+            case 0: // Play 탭
+            case 1: // Worm 탭
+            case 2: // Home 탭
+                SetCountTextVisible(acornCountText, true);
+                SetCountButtonVisible(acornCountPopupButton, true);
+                UpdateAcornCount(currentAcornCount);
+                Debug.Log($"[TopBarManager] 탭 {tabIndex} - AcornCount 텍스트/버튼 활성화");
+                break;
+                
+            case 3: // Item 탭
+                SetCountTextVisible(diamondCountText, true);
+                SetCountButtonVisible(diamondCountPopupButton, true);
+                UpdateDiamondCount(currentDiamondCount);
+                Debug.Log($"[TopBarManager] 탭 {tabIndex} - DiamondCount 텍스트/버튼 활성화");
+                break;
+                
+            case 4: // Achievement 탭
+                SetCountTextVisible(medalCountText, true);
+                SetCountButtonVisible(medalCountPopupButton, true);
+                UpdateMedalCount(currentMedalCount);
+                Debug.Log($"[TopBarManager] 탭 {tabIndex} - MedalCount 텍스트/버튼 활성화");
+                break;
+                
+            default:
+                Debug.LogWarning($"[TopBarManager] 알 수 없는 탭 인덱스: {tabIndex}");
+                break;
+        }
     }
 
     /// <summary>
-    /// MedalCount 버튼 활성화 (Achievement 탭용)
+    /// AcornCount 버튼 활성화 (하위 호환용)
+    /// </summary>
+    public void ActivateAcornCountButton()
+    {
+        ActivateCountButtonForTab(0); // Play 탭으로 처리
+    }
+
+    /// <summary>
+    /// DiamondCount 버튼 활성화 (하위 호환용)
+    /// </summary>
+    public void ActivateDiamondCountButton()
+    {
+        ActivateCountButtonForTab(3); // Item 탭으로 처리
+    }
+
+    /// <summary>
+    /// MedalCount 버튼 활성화 (하위 호환용)
     /// </summary>
     public void ActivateMedalCountButton()
     {
-        // 모든 카운트 버튼 비활성화
-        SetCountButtonVisible(acornCountPopupButton, false);
-        SetCountButtonVisible(diamondCountPopupButton, false);
-        SetCountButtonVisible(medalCountPopupButton, false);
-        
-        // MedalCount 버튼만 활성화
-        SetCountButtonVisible(medalCountPopupButton, true);
-        UpdateMedalCount(currentMedalCount);
-        
-        Debug.Log("[TopBarManager] MedalCount 버튼 활성화 완료");
+        ActivateCountButtonForTab(4); // Achievement 탭으로 처리
     }
 
     /// <summary>
@@ -831,5 +872,6 @@ public class TopBarManager : MonoBehaviour
         {
             WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
         }
+    }
     }
 }

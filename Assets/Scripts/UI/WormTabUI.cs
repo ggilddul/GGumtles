@@ -2,8 +2,13 @@
 using System.Collections;
 using TMPro;
 using UnityEngine.UI;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class WormTabUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class WormTabUI : MonoBehaviour
 {
     public static WormTabUI Instance { get; private set; }
 
@@ -49,8 +54,68 @@ public class WormTabUI : MonoBehaviour
 
     private void Start()
     {
-        InitializeWormTabUI();
-        SubscribeToEvents();
+        StartCoroutine(WaitForManagersAndInitialize());
+    }
+    
+    /// <summary>
+    /// 매니저들이 초기화될 때까지 대기한 후 WormTabUI 초기화
+    /// </summary>
+    private IEnumerator WaitForManagersAndInitialize()
+    {
+        LogDebug("[WormTabUI] 매니저 초기화 대기 시작");
+        
+        // WormManager 인스턴스 대기
+        while (WormManager.Instance == null)
+        {
+            LogDebug("[WormTabUI] WormManager.Instance 대기 중...");
+            yield return null;
+        }
+        LogDebug("[WormTabUI] WormManager.Instance 확인됨");
+        
+        // WormManager 초기화 대기
+        while (!WormManager.Instance.IsInitialized)
+        {
+            LogDebug("[WormTabUI] WormManager 초기화 대기 중...");
+            yield return null;
+        }
+        LogDebug("[WormTabUI] WormManager 초기화 완료");
+        
+        // SpriteManager 인스턴스 대기
+        while (SpriteManager.Instance == null)
+        {
+            LogDebug("[WormTabUI] SpriteManager.Instance 대기 중...");
+            yield return null;
+        }
+        LogDebug("[WormTabUI] SpriteManager.Instance 확인됨");
+        
+        // 이제 안전하게 초기화
+        if (!isInitialized)
+        {
+            InitializeWormTabUI();
+            SubscribeToEvents();
+            LogDebug("[WormTabUI] WormTabUI 초기화 완료");
+        }
+    }
+    
+    /// <summary>
+    /// 외부에서 강제 초기화할 수 있는 메서드
+    /// </summary>
+    public void ForceInitialize()
+    {
+        if (!isInitialized)
+        {
+            // GameObject가 비활성화된 경우 직접 초기화
+            if (!gameObject.activeInHierarchy)
+            {
+                InitializeWormTabUI();
+                SubscribeToEvents();
+                isInitialized = true;
+            }
+            else
+            {
+                StartCoroutine(WaitForManagersAndInitialize());
+            }
+        }
     }
 
     private void InitializeSingleton()
@@ -92,8 +157,7 @@ public class WormTabUI : MonoBehaviour
             if (wormSpriteImage == null)
                 wormSpriteImage = transform.Find("WormOverviewPanel/WormSpriteImage")?.GetComponent<Image>();
 
-            isInitialized = true;
-            LogDebug("[WormTabUI] 초기화 완료");
+            LogDebug("[WormTabUI] WormTabUI 초기화 완료");
         }
         catch (System.Exception ex)
         {
@@ -437,5 +501,6 @@ public class WormTabUI : MonoBehaviour
         UnsubscribeFromEvents();
         OnWormTabRefreshedEvent = null;
         OnWormDataChangedEvent = null;
+    }
     }
 }

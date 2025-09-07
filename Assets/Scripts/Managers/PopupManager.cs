@@ -4,8 +4,12 @@ using System.Linq;
 using UnityEngine;
 using GGumtles.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-public class PopupManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class PopupManager : MonoBehaviour
 {
     public static PopupManager Instance { get; private set; }
 
@@ -119,6 +123,9 @@ public class PopupManager : MonoBehaviour
     // 컴포넌트 캐시
     private Dictionary<PopupType, GameObject> popupPrefabs = new Dictionary<PopupType, GameObject>();
     private Dictionary<GameObject, PopupInfo> popupInfoMap = new Dictionary<GameObject, PopupInfo>();
+    
+    // 진화 단계 정보 저장 (wormId -> (fromStage, toStage))
+    private Dictionary<int, System.Tuple<int, int>> evolveStageInfo = new Dictionary<int, System.Tuple<int, int>>();
     
     // 상태 관리
     private bool isInitialized = false;
@@ -430,9 +437,21 @@ public class PopupManager : MonoBehaviour
         var popup = popupObject.GetComponent<WormEvolvePopupUI>();
         if (popup != null)
         {
-            // 진화 단계 정보는 WormManager에서 가져와야 함
-            int fromStage = 0;
+            // 저장된 진화 단계 정보 사용
+            int fromStage = 0; // 기본값
             int toStage = wormData.lifeStage;
+            
+            if (evolveStageInfo.ContainsKey(wormData.wormId))
+            {
+                var stageInfo = evolveStageInfo[wormData.wormId];
+                fromStage = stageInfo.Item1;
+                toStage = stageInfo.Item2;
+                
+                // 사용 후 제거
+                evolveStageInfo.Remove(wormData.wormId);
+            }
+            
+            Debug.Log($"[PopupManager] WormEvolvePopup 설정: {wormData.name} ({fromStage} → {toStage})");
             popup.Initialize(wormData, fromStage, toStage);
         }
     }
@@ -455,9 +474,12 @@ public class PopupManager : MonoBehaviour
 
     private void SetupItemPopup(GameObject popupObject, ItemData.ItemType itemPopupType)
     {
+        Debug.Log($"[PopupManager] SetupItemPopup 호출됨 - ItemType: {itemPopupType}, PopupObject: {popupObject?.name}");
+        
         var itemSlotUI = popupObject.GetComponent<ItemSlotUI>();
         if (itemSlotUI != null)
         {
+            Debug.Log($"[PopupManager] ItemSlotUI 컴포넌트 찾음 - Initialize 호출");
             itemSlotUI.Initialize(itemPopupType);
         }
         else
@@ -468,14 +490,18 @@ public class PopupManager : MonoBehaviour
 
     private void SetupGfcPopup(GameObject popupObject)
     {
-        // WormFamilyManager에 GFC 팝업이 열렸음을 알림
-        if (WormFamilyManager.Instance != null)
+        // GFC팝업UI 컴포넌트 찾기
+        var gfcPopupUI = popupObject.GetComponent<GGumtles.UI.GfcPopupUI>();
+        if (gfcPopupUI != null)
         {
-            WormFamilyManager.Instance.HandleGfcPopupOpened(popupObject);
+            // WormManager에서 모든 벌레 데이터 가져오기
+            var allWorms = WormManager.Instance?.GetAllWorms();
+            gfcPopupUI.Initialize(allWorms);
+            Debug.Log($"[PopupManager] GFC팝업UI 초기화 완료 - 벌레 수: {allWorms?.Count ?? 0}");
         }
         else
         {
-            Debug.LogWarning("[PopupManager] WormFamilyManager를 찾을 수 없습니다.");
+            Debug.LogWarning("[PopupManager] GfcPopupUI 컴포넌트를 찾을 수 없습니다.");
         }
     }
 
@@ -586,11 +612,7 @@ public class PopupManager : MonoBehaviour
     {
         if (popupInfo == null || popupInfo.popupObject == null) return;
 
-        // GFC 팝업이 닫힐 때 WormFamilyManager에 알림
-        if (popupInfo.type == PopupType.GFC && WormFamilyManager.Instance != null)
-        {
-            WormFamilyManager.Instance.HandleGfcPopupClosed();
-        }
+        // GFC 팝업이 닫힐 때는 특별한 처리가 필요하지 않음 (GfcPopupUI에서 자체 처리)
 
         // 팝업 비활성화 (null 체크 추가)
         popupInfo.popupObject.SetActive(false);
@@ -723,8 +745,18 @@ public class PopupManager : MonoBehaviour
     /// <summary>
     /// 진화 팝업 열기
     /// </summary>
-    public void OpenEvolvePopup(WormData worm)
+    public void OpenEvolvePopup(WormData worm, int fromStage, int toStage)
     {
+        // 진화 정보를 딕셔너리에 저장
+        if (!evolveStageInfo.ContainsKey(worm.wormId))
+        {
+            evolveStageInfo[worm.wormId] = new System.Tuple<int, int>(fromStage, toStage);
+        }
+        else
+        {
+            evolveStageInfo[worm.wormId] = new System.Tuple<int, int>(fromStage, toStage);
+        }
+        
         OpenPopup(PopupType.EvolvePopup, PopupPriority.High, worm);
     }
 
@@ -815,6 +847,7 @@ public class PopupManager : MonoBehaviour
     /// </summary>
     public void OpenItemPopup(ItemData.ItemType itemType)
     {
+        Debug.Log($"[PopupManager] OpenItemPopup 호출됨 - ItemType: {itemType}");
         OpenPopup(PopupType.Item, PopupPriority.Normal, itemType);
     }
 
@@ -921,5 +954,6 @@ public class PopupManager : MonoBehaviour
                 }
             }
         }
+    }
     }
 }

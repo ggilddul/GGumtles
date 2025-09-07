@@ -1,8 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class AchievementButtonUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class AchievementButtonUI : MonoBehaviour
 {
     [Header("UI 컴포넌트")]
     [SerializeField] private Image iconImage;
@@ -13,7 +18,7 @@ public class AchievementButtonUI : MonoBehaviour
     private bool componentsInitialized = false;
 
     [Header("디버그")]
-    [SerializeField] private bool enableDebugLogs = false;
+    [SerializeField] private bool enableDebugLogs = true;
 
     // 데이터
     private int achievementIndex;
@@ -32,26 +37,40 @@ public class AchievementButtonUI : MonoBehaviour
     {
         try
         {
+            LogDebug($"[AchievementButtonUI] Initialize 시작: {definition?.achievementTitle}, index: {index}");
+            
             // 컴포넌트 자동 찾기 (Instantiate된 경우)
+            LogDebug($"[AchievementButtonUI] 컴포넌트 초기화 시작");
             InitializeComponents();
+            LogDebug($"[AchievementButtonUI] 컴포넌트 초기화 완료");
             
             achievementIndex = index;
             achievementData = definition;
+            LogDebug($"[AchievementButtonUI] 데이터 저장 완료");
             
             // AchievementManager에서 해금 여부 가져오기
             var achievementManager = AchievementManager.Instance;
             if (achievementManager != null)
             {
                 isUnlocked = achievementManager.IsUnlocked(definition.achievementId);
+                LogDebug($"[AchievementButtonUI] 해금 여부 확인: {isUnlocked}");
+            }
+            else
+            {
+                LogDebug("[AchievementButtonUI] AchievementManager.Instance가 null입니다");
             }
             
             // UI 업데이트
+            LogDebug($"[AchievementButtonUI] UI 업데이트 시작");
             UpdateUI();
+            LogDebug($"[AchievementButtonUI] UI 업데이트 완료");
             
             // 버튼 이벤트 설정
+            LogDebug($"[AchievementButtonUI] 버튼 이벤트 설정 시작");
             SetupButtonEvents();
+            LogDebug($"[AchievementButtonUI] 버튼 이벤트 설정 완료");
             
-            LogDebug($"[AchievementButtonUI] 업적 버튼 초기화: {definition?.achievementTitle}");
+            LogDebug($"[AchievementButtonUI] 업적 버튼 초기화 완료: {definition?.achievementTitle}");
         }
         catch (System.Exception ex)
         {
@@ -71,18 +90,35 @@ public class AchievementButtonUI : MonoBehaviour
             // titleText 자동 찾기
             if (titleText == null)
             {
+                // 1. GetComponentInChildren로 찾기
                 titleText = GetComponentInChildren<TMP_Text>();
+                
+                // 2. 이름으로 찾기
                 if (titleText == null)
                 {
-                    // "TitleText" 또는 "NameText" 이름으로 찾기
-                    Transform titleTransform = transform.Find("TitleText");
-                    if (titleTransform == null) titleTransform = transform.Find("NameText");
-                    if (titleTransform == null) titleTransform = transform.Find("AchievementNameText");
-                    if (titleTransform != null)
+                    string[] possibleNames = { "TitleText", "NameText", "AchievementNameText", "AchNameText", "Text" };
+                    foreach (string name in possibleNames)
                     {
-                        titleText = titleTransform.GetComponent<TMP_Text>();
+                        Transform titleTransform = transform.Find(name);
+                        if (titleTransform != null)
+                        {
+                            titleText = titleTransform.GetComponent<TMP_Text>();
+                            if (titleText != null) break;
+                        }
                     }
                 }
+                
+                // 3. 모든 자식에서 TMP_Text 찾기
+                if (titleText == null)
+                {
+                    TMP_Text[] allTexts = GetComponentsInChildren<TMP_Text>();
+                    if (allTexts.Length > 0)
+                    {
+                        titleText = allTexts[0]; // 첫 번째 TMP_Text 사용
+                    }
+                }
+                
+                LogDebug($"[AchievementButtonUI] titleText 찾기 결과: {titleText != null}");
             }
             
             // iconImage 자동 찾기
@@ -125,13 +161,22 @@ public class AchievementButtonUI : MonoBehaviour
     /// </summary>
     private void UpdateUI()
     {
-        if (achievementData == null) return;
+        LogDebug($"[AchievementButtonUI] UpdateUI 시작");
+        
+        if (achievementData == null) 
+        {
+            LogDebug("[AchievementButtonUI] achievementData가 null입니다");
+            return;
+        }
+
+        LogDebug($"[AchievementButtonUI] achievementData 확인: {achievementData.achievementTitle}");
 
         // 제목 텍스트
+        LogDebug($"[AchievementButtonUI] titleText 확인: {titleText != null}");
         if (titleText != null)
         {
             titleText.text = achievementData.achievementTitle;
-            LogDebug($"[AchievementButtonUI] 제목 텍스트 설정: {achievementData.achievementTitle}");
+            LogDebug($"[AchievementButtonUI] 제목 텍스트 설정 완료: {achievementData.achievementTitle}");
         }
         else
         {
@@ -139,23 +184,33 @@ public class AchievementButtonUI : MonoBehaviour
         }
 
         // 아이콘 이미지
+        LogDebug($"[AchievementButtonUI] iconImage 확인: {iconImage != null}");
         if (iconImage != null)
         {
             // SpriteManager에서 아이콘 가져오기
+            LogDebug($"[AchievementButtonUI] SpriteManager 확인: {SpriteManager.Instance != null}");
             Sprite iconSprite = null;
             if (SpriteManager.Instance != null)
             {
+                LogDebug($"[AchievementButtonUI] GetAchievementSprite 호출: {achievementData.achievementId}");
                 iconSprite = SpriteManager.Instance.GetAchievementSprite(achievementData.achievementId);
+                LogDebug($"[AchievementButtonUI] GetAchievementSprite 결과: {iconSprite != null}");
+            }
+            else
+            {
+                LogDebug("[AchievementButtonUI] SpriteManager.Instance가 null입니다");
             }
             
             iconImage.sprite = iconSprite;
             iconImage.color = isUnlocked ? Color.white : new Color(0.8f, 0.8f, 0.8f, 1f);
-            LogDebug($"[AchievementButtonUI] 아이콘 이미지 설정: {iconSprite != null}");
+            LogDebug($"[AchievementButtonUI] 아이콘 이미지 설정 완료: sprite={iconSprite != null}, color={iconImage.color}");
         }
         else
         {
             Debug.LogWarning($"[AchievementButtonUI] iconImage가 null입니다. Inspector에서 할당하거나 자식 오브젝트에 Image를 추가하세요.");
         }
+        
+        LogDebug($"[AchievementButtonUI] UpdateUI 완료");
     }
 
     /// <summary>
@@ -191,13 +246,15 @@ public class AchievementButtonUI : MonoBehaviour
             {
                 if (isUnlocked)
                 {
-                    // 해금된 업적: Achievement1 팝업
-                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                    // 해금된 업적: Achievement2 팝업
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                    LogDebug($"[AchievementButtonUI] 해금된 업적 - Achievement2 팝업 열기: {achievementData.achievementTitle}");
                 }
                 else
                 {
-                    // 잠금된 업적: Achievement2 팝업
-                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                    // 잠금된 업적: Achievement1 팝업
+                    PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                    LogDebug($"[AchievementButtonUI] 잠금된 업적 - Achievement1 팝업 열기: {achievementData.achievementTitle}");
                 }
             }
 
@@ -256,5 +313,6 @@ public class AchievementButtonUI : MonoBehaviour
         {
             button.onClick.RemoveAllListeners();
         }
+    }
     }
 }

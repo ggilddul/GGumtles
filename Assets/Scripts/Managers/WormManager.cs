@@ -1,8 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class WormManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class WormManager : MonoBehaviour
 {
     public static WormManager Instance { get; private set; }
 
@@ -54,6 +59,7 @@ public class WormManager : MonoBehaviour
 
     public delegate void OnCurrentWormChanged(WormData previousWorm, WormData newWorm);
     public event OnCurrentWormChanged OnCurrentWormChangedEvent;
+    
 
     // 프로퍼티
     public WormData CurrentWorm => currentWorm;
@@ -487,7 +493,7 @@ public class WormManager : MonoBehaviour
         // 알림 표시
         if (showEvolutionNotifications)
         {
-            PopupManager.Instance?.OpenEvolvePopup(worm);
+            PopupManager.Instance?.OpenEvolvePopup(worm, fromStage, toStage);
         }
 
         // 사운드 재생
@@ -713,6 +719,7 @@ public class WormManager : MonoBehaviour
         }
     }
 
+
     private void OnDestroy()
     {
         // 이벤트 초기화
@@ -726,6 +733,7 @@ public class WormManager : MonoBehaviour
             GameManager.Instance.OnGameTimeChangedEvent -= OnGameTimeChanged;
             isSubscribedToGameTime = false;
         }
+    }
     }
 }
 

@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public static class RandomManager
+namespace GGumtles.Utils
+{
+    public static class RandomManager
 {
     private static System.Random rng = new System.Random();
 
@@ -64,5 +66,6 @@ public static class RandomManager
     public static void SetSeed(int seed)
     {
         rng = new System.Random(seed);
+    }
     }
 }

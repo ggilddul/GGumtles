@@ -1,7 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using GGumtles.Managers;
 
-public class ResourceDrop : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class ResourceDrop : MonoBehaviour
 {
     [Header("낙하 설정")]
     [SerializeField] private float fallSpeed = 300f; // 초기 속도 (픽셀/초)
@@ -414,5 +417,6 @@ public class ResourceDrop : MonoBehaviour
         // 이벤트 구독 해제
         OnResourceLandedEvent = null;
         OnResourceBouncedEvent = null;
+    }
     }
 }

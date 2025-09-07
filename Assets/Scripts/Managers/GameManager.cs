@@ -1,7 +1,13 @@
 using UnityEngine;
 using System.Collections;
+using GGumtles.Data;
+using GGumtles.Managers;
+using GGumtles.UI;
+using GGumtles.Utils;
 
-public class GameManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
@@ -29,6 +35,7 @@ public class GameManager : MonoBehaviour
     [Header("Resources")]
     public int acornCount;
     public int diamondCount;
+    public int medalCount;
 
     [Header("References")]
     public MapManager mapManager;
@@ -137,8 +144,22 @@ public class GameManager : MonoBehaviour
             mapManager.ChangeMapByIndex(saveData.selectedMapIndex);
         }
 
-        ItemTabUI.Instance?.RefreshAllPreviews();
+        // ItemTabUI가 초기화될 때까지 기다린 후 RefreshAllPreviews 호출
+        StartCoroutine(RefreshItemTabWhenReady());
         TabManager.Instance?.OpenTab(2); // Home 탭으로 자동 전환
+    }
+
+    private IEnumerator RefreshItemTabWhenReady()
+    {
+        // ItemTabUI가 초기화될 때까지 대기
+        yield return new WaitUntil(() => ItemTabUI.Instance != null);
+        
+        // 추가로 안전을 위해 잠시 더 대기
+        yield return new WaitForSeconds(0.1f);
+        
+        // ItemTabUI 새로고침
+        ItemTabUI.Instance?.RefreshAllPreviews();
+        Debug.Log("[GameManager] ItemTabUI 새로고침 완료");
     }
 
     private IEnumerator UpdateTimeUIWhenReady()
@@ -373,5 +394,6 @@ public class GameManager : MonoBehaviour
     {
         timeScale = newScale;
         Debug.Log($"[GameManager] 시간 배율 설정: {newScale}");
+    }
     }
 }

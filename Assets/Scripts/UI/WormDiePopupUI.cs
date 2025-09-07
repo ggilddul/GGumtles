@@ -1,8 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Utils;
 
-public class WormDiePopupUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class WormDiePopupUI : MonoBehaviour
 {
     [Header("UI 요소")]
     [SerializeField] private Image wormImage;              // 벌레 이미지
@@ -125,5 +129,6 @@ public class WormDiePopupUI : MonoBehaviour
         {
             Debug.Log(message);
         }
+    }
     }
 }

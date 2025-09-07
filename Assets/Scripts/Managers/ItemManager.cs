@@ -1,9 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
+using GGumtles.Data;
 using System.Linq;
 using System.Collections;
+using GGumtles.Managers;
 
-public class ItemManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class ItemManager : MonoBehaviour
 {
     public static ItemManager Instance { get; private set; }
 
@@ -694,5 +698,6 @@ public class ItemManager : MonoBehaviour
         OnItemUnequippedEvent = null;
         OnItemUsedEvent = null;
 
+    }
     }
 }

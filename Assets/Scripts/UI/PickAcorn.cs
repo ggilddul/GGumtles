@@ -1,7 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using GGumtles.Managers;
 
-public class PickAcorn : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class PickAcorn : MonoBehaviour
 {
     [Header("UI 컴포넌트")]
     [SerializeField] private Image acornImage;
@@ -377,5 +380,6 @@ public class PickAcorn : MonoBehaviour
         // 이벤트 구독 해제
         OnAcornPickedEvent = null;
         OnAcornPickStartedEvent = null;
+    }
     }
 }

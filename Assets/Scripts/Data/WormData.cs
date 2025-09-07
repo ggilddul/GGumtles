@@ -1,8 +1,10 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[System.Serializable]
-public class WormData
+namespace GGumtles.Data
+{
+    [System.Serializable]
+    public class WormData
 {
     [Header("기본 정보")]
     public int wormId = -1;
@@ -31,5 +33,6 @@ public class WormData
         public int totalEatCount = 0;        // 총 먹이 횟수
         public int totalPlayCount = 0;       // 총 놀이 횟수
         public int achievementCount = 0;     // 총 업적 수
+    }
     }
 }

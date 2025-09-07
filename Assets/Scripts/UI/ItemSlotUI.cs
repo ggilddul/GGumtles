@@ -1,9 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
 using System.Collections.Generic;
+using GGumtles.Managers;
 
-public class ItemSlotUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class ItemSlotUI : MonoBehaviour
 {
     [Header("Content")]
     [SerializeField] private Transform contentTransform;  // 아이템 버튼들이 생성될 부모 Transform
@@ -405,5 +409,6 @@ public class ItemSlotUI : MonoBehaviour
 
         // 이벤트 초기화
         OnItemSelectedEvent = null;
+    }
     }
 }

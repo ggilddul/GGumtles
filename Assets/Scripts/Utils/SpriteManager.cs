@@ -2,14 +2,18 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-/// <summary>
-/// 스프라이트 매니저 - 맵 스프라이트 관리 및 벌레 스프라이트 합성
-/// 1. 맵 스프라이트 관리 (타입별, 시간대별)
-/// 2. WormData의 아이템 정보를 통해 완성된 벌레 스프라이트 생성
-/// 3. 생명주기에 따른 크기 조절된 스프라이트를 홈 탭에 표시
-/// </summary>
-public class SpriteManager : MonoBehaviour
+namespace GGumtles.Utils
+{
+    /// <summary>
+    /// 스프라이트 매니저 - 맵 스프라이트 관리 및 벌레 스프라이트 합성
+    /// 1. 맵 스프라이트 관리 (타입별, 시간대별)
+    /// 2. WormData의 아이템 정보를 통해 완성된 벌레 스프라이트 생성
+    /// 3. 생명주기에 따른 크기 조절된 스프라이트를 홈 탭에 표시
+    /// </summary>
+    public class SpriteManager : MonoBehaviour
 {
     public static SpriteManager Instance { get; private set; }
 
@@ -36,6 +40,9 @@ public class SpriteManager : MonoBehaviour
     
     [Header("디버그 설정")]
     [SerializeField] private bool enableDebugLogs = false;
+    
+    [Header("기본 스프라이트")]
+    [SerializeField] private Sprite defaultSprite;  // 맵 스프라이트가 없을 때 사용할 기본 스프라이트
 
     // 맵 타입 열거형
     public enum MapType 
@@ -245,7 +252,15 @@ public class SpriteManager : MonoBehaviour
             return sprite;
         }
 
-        Debug.LogWarning($"[SpriteManager] 맵 스프라이트를 찾을 수 없습니다: {mapType}, {phase}");
+        // 맵 스프라이트가 설정되지 않은 경우 기본 스프라이트 반환
+        Debug.LogWarning($"[SpriteManager] 맵 스프라이트를 찾을 수 없습니다: {mapType}, {phase}. 기본 스프라이트를 사용합니다.");
+        
+        // 기본 스프라이트가 있다면 반환
+        if (defaultSprite != null)
+        {
+            return defaultSprite;
+        }
+        
         return null;
     }
 
@@ -521,25 +536,64 @@ public class SpriteManager : MonoBehaviour
         }
         
         // 1. achievementSprites에서 해당 업적 스프라이트 찾기
+        if (enableDebugLogs)
+        {
+            Debug.Log($"[SpriteManager] achievementSprites 확인: {achievementSprites != null}, 길이: {achievementSprites?.Length ?? 0}");
+        }
+        
         if (achievementSprites != null && achievementSprites.Length > 0)
         {
             // achievementId를 기반으로 인덱스 계산 (간단한 해시 방식)
             int index = Mathf.Abs(achievementId.GetHashCode()) % achievementSprites.Length;
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[SpriteManager] achievementSprites 인덱스 계산: {index}");
+            }
+            
             if (achievementSprites[index] != null)
             {
+                if (enableDebugLogs)
+                {
+                    Debug.Log($"[SpriteManager] achievementSprites에서 스프라이트 반환: {achievementSprites[index].name}");
+                }
                 return achievementSprites[index];
+            }
+            else
+            {
+                if (enableDebugLogs)
+                {
+                    Debug.Log($"[SpriteManager] achievementSprites[{index}]가 null입니다");
+                }
             }
         }
         
         // 2. achievementSprites가 없으면 기본 아이콘 반환 (아이템 스프라이트 사용)
+        if (enableDebugLogs)
+        {
+            Debug.Log($"[SpriteManager] itemSpriteSets 확인: {itemSpriteSets != null}, 개수: {itemSpriteSets?.Count ?? 0}");
+        }
+        
         if (itemSpriteSets != null && itemSpriteSets.Count > 0 && itemSpriteSets[0].sprite != null)
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[SpriteManager] itemSpriteSets에서 스프라이트 반환: {itemSpriteSets[0].sprite.name}");
+            }
             return itemSpriteSets[0].sprite;
         }
         
         // 3. 마지막으로 lifeStageSprites 사용 (알 스프라이트 대신)
+        if (enableDebugLogs)
+        {
+            Debug.Log($"[SpriteManager] lifeStageSprites 확인: {lifeStageSprites != null}, 길이: {lifeStageSprites?.Length ?? 0}");
+        }
+        
         if (lifeStageSprites != null && lifeStageSprites.Length > 1)
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log($"[SpriteManager] lifeStageSprites에서 스프라이트 반환: {lifeStageSprites[1]?.name}");
+            }
             return lifeStageSprites[1]; // 알(0) 대신 다음 단계(1) 사용
         }
         
@@ -664,4 +718,5 @@ public class SpriteManager : MonoBehaviour
     }
 
     #endregion
+    }
 }

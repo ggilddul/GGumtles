@@ -2,8 +2,13 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using GGumtles.Data;
+using GGumtles.UI;
+using GGumtles.Managers;
 
-public class LoadingManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class LoadingManager : MonoBehaviour
 {
     public static LoadingManager Instance { get; private set; }
 
@@ -134,6 +139,9 @@ public class LoadingManager : MonoBehaviour
             GameManager.Instance.OnGameInitializedEvent -= OnGameInitialized;
         }
         
+        // UI 초기화 (매니저들이 모두 준비된 후)
+        InitializeUI();
+        
         // 최소 로딩 시간 보장
         StartCoroutine(EnsureMinimumLoadingTime());
     }
@@ -198,14 +206,7 @@ public class LoadingManager : MonoBehaviour
             MapManager.Instance.Initialize();
         }
 
-        // WormFamilyManager 초기화 (저장된 벌레 데이터와 함께)
-        if (WormFamilyManager.Instance != null)
-        {
-            WormFamilyManager.Instance.Initialize();
-            var savedWorms = GameSaveManager.Instance?.GetWormData() ?? new List<WormData>();
-            WormFamilyManager.Instance.InitializeFamilyTree(savedWorms);
-            Debug.Log($"[LoadingManager] WormFamilyManager 초기화 - 저장된 벌레: {savedWorms.Count}마리");
-        }
+        // WormFamilyManager 제거됨 - 가계도 기능은 WormManager에서 처리
 
         // TabManager 초기화
         if (TabManager.Instance != null)
@@ -225,6 +226,93 @@ public class LoadingManager : MonoBehaviour
             TopBarManager.Instance.Initialize();
         }
 
+    }
+    
+    /// <summary>
+    /// UI 초기화 (모든 매니저가 준비된 후 호출)
+    /// </summary>
+    private void InitializeUI()
+    {
+        Debug.Log("[LoadingManager] UI 초기화 시작");
+        
+        // UI 초기화를 코루틴으로 처리 (UI 오브젝트들이 준비될 때까지 대기)
+        StartCoroutine(InitializeUIWhenReady());
+    }
+    
+    /// <summary>
+    /// UI 오브젝트들이 준비될 때까지 대기한 후 초기화
+    /// </summary>
+    private IEnumerator InitializeUIWhenReady()
+    {
+        Debug.Log("[LoadingManager] UI 오브젝트 대기 시작");
+        
+        // UI 오브젝트들이 활성화될 때까지 대기 (최대 10초로 연장)
+        float timeout = 10f;
+        float elapsed = 0f;
+        
+        while (elapsed < timeout)
+        {
+            // 비활성화된 오브젝트도 포함하여 검색
+            var achieveTabUI = FindFirstObjectByType<AchieveTabUI>(FindObjectsInactive.Include);
+            var itemTabUI = FindFirstObjectByType<ItemTabUI>(FindObjectsInactive.Include);
+            var wormTabUI = FindFirstObjectByType<WormTabUI>(FindObjectsInactive.Include);
+            
+            // 디버깅 정보 추가
+            if (elapsed % 2f < 0.1f) // 2초마다 한 번씩 로그 출력
+            {
+                Debug.Log($"[LoadingManager] UI 오브젝트 검색 중... (경과시간: {elapsed:F1}초)");
+                Debug.Log($"[LoadingManager] AchieveTabUI: {(achieveTabUI != null ? $"발견 (활성: {achieveTabUI.gameObject.activeInHierarchy})" : "없음")}");
+                Debug.Log($"[LoadingManager] ItemTabUI: {(itemTabUI != null ? $"발견 (활성: {itemTabUI.gameObject.activeInHierarchy})" : "없음")}");
+                Debug.Log($"[LoadingManager] WormTabUI: {(wormTabUI != null ? $"발견 (활성: {wormTabUI.gameObject.activeInHierarchy})" : "없음")}");
+            }
+            
+            if (achieveTabUI != null && itemTabUI != null && wormTabUI != null)
+            {
+                Debug.Log("[LoadingManager] 모든 UI 오브젝트 발견됨");
+                break;
+            }
+            
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        
+        // AchieveTabUI 초기화
+        var achieveTabUI_final = FindFirstObjectByType<AchieveTabUI>(FindObjectsInactive.Include);
+        if (achieveTabUI_final != null)
+        {
+            achieveTabUI_final.ForceInitialize();
+            Debug.Log("[LoadingManager] AchieveTabUI 초기화 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[LoadingManager] AchieveTabUI를 찾을 수 없습니다. (타임아웃)");
+        }
+        
+        // ItemTabUI 초기화
+        var itemTabUI_final = FindFirstObjectByType<ItemTabUI>(FindObjectsInactive.Include);
+        if (itemTabUI_final != null)
+        {
+            itemTabUI_final.ForceInitialize();
+            Debug.Log("[LoadingManager] ItemTabUI 초기화 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[LoadingManager] ItemTabUI를 찾을 수 없습니다. (타임아웃)");
+        }
+        
+        // WormTabUI 초기화
+        var wormTabUI_final = FindFirstObjectByType<WormTabUI>(FindObjectsInactive.Include);
+        if (wormTabUI_final != null)
+        {
+            wormTabUI_final.ForceInitialize();
+            Debug.Log("[LoadingManager] WormTabUI 초기화 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[LoadingManager] WormTabUI를 찾을 수 없습니다. (타임아웃)");
+        }
+        
+        Debug.Log("[LoadingManager] UI 초기화 완료");
     }
 
     public void ShowLoading(LoadingType type)
@@ -386,5 +474,6 @@ public class LoadingManager : MonoBehaviour
         {
             GameManager.Instance.OnGameInitializedEvent -= OnGameInitialized;
         }
+    }
     }
 }

@@ -1,7 +1,9 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ItemData", menuName = "GGumtles/Item Data")]
-public class ItemData : ScriptableObject
+namespace GGumtles.Data
+{
+    [CreateAssetMenu(fileName = "ItemData", menuName = "GGumtles/Item Data")]
+    public class ItemData : ScriptableObject
 {
     [Header("기본 정보")]
     public string itemId = "";
@@ -22,5 +24,6 @@ public class ItemData : ScriptableObject
         Hat,
         Face,
         Costume
+    }
     }
 }

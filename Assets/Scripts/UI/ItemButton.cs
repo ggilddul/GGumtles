@@ -1,8 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using GGumtles.Data;
 using TMPro;
+using GGumtles.Utils;
 
-public class ItemButton : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class ItemButton : MonoBehaviour
 {
     [Header("UI 요소")]
     [SerializeField] private Image itemImage;           // 아이템 이미지
@@ -302,5 +306,6 @@ public class ItemButton : MonoBehaviour
     {
         // 이벤트 초기화
         OnItemClickedEvent = null;
+    }
     }
 }

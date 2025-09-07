@@ -3,8 +3,12 @@ using System.IO;
 using System;
 using UnityEngine;
 using System.Collections;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-public class GameSaveManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class GameSaveManager : MonoBehaviour
 {
     public static GameSaveManager Instance { get; private set; }
 
@@ -54,7 +58,31 @@ public class GameSaveManager : MonoBehaviour
         {
             if (File.Exists(saveFilePath))
             {
+                // 파일 크기 확인 (손상된 파일 감지)
+                FileInfo fileInfo = new FileInfo(saveFilePath);
+                if (fileInfo.Length == 0)
+                {
+                    Debug.LogWarning("[GameSaveManager] 저장 파일이 비어있습니다. 백업에서 복원 시도");
+                    if (!TryLoadFromBackup())
+                    {
+                        CreateNewSaveData();
+                    }
+                    return;
+                }
+                
                 string json = File.ReadAllText(saveFilePath);
+                
+                // JSON 유효성 검사
+                if (string.IsNullOrEmpty(json) || json.Trim().Length == 0)
+                {
+                    Debug.LogWarning("[GameSaveManager] 저장 파일 내용이 비어있습니다. 백업에서 복원 시도");
+                    if (!TryLoadFromBackup())
+                    {
+                        CreateNewSaveData();
+                    }
+                    return;
+                }
+                
                 currentSaveData = JsonUtility.FromJson<GameSaveData>(json);
                 
                 // 데이터 검증
@@ -80,6 +108,22 @@ public class GameSaveManager : MonoBehaviour
         catch (Exception ex)
         {
             Debug.LogError($"[GameSaveManager] 로드 중 오류: {ex.Message}");
+            Debug.LogError($"[GameSaveManager] 손상된 파일 삭제 시도: {saveFilePath}");
+            
+            // 손상된 파일 삭제
+            try
+            {
+                if (File.Exists(saveFilePath))
+                {
+                    File.Delete(saveFilePath);
+                    Debug.Log("[GameSaveManager] 손상된 파일 삭제 완료");
+                }
+            }
+            catch (Exception deleteEx)
+            {
+                Debug.LogError($"[GameSaveManager] 파일 삭제 실패: {deleteEx.Message}");
+            }
+            
             if (!TryLoadFromBackup())
             {
                 CreateNewSaveData();
@@ -371,5 +415,6 @@ public class GameSaveManager : MonoBehaviour
         {
             Debug.LogError($"[GameSaveManager] 백업 생성 실패: {ex.Message}");
         }
+    }
     }
 }

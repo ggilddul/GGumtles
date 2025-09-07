@@ -1,7 +1,9 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "AchievementData", menuName = "GGumtles/Achievement Data")]
-public class AchievementData : ScriptableObject
+namespace GGumtles.Data
+{
+    [CreateAssetMenu(fileName = "AchievementData", menuName = "GGumtles/Achievement Data")]
+    public class AchievementData : ScriptableObject
 {
     [Header("기본 정보")]
     public string achievementId = "";
@@ -43,5 +45,6 @@ public class AchievementData : ScriptableObject
     public enum RewardType
     {
         Diamond        // 다이아몬드 1개
+    }
     }
 }

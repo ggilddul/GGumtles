@@ -1,9 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
 using System.Collections.Generic;
+using GGumtles.Managers;
+using GGumtles.Utils;
 
-public class ItemTabUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class ItemTabUI : MonoBehaviour
 {
     public static ItemTabUI Instance { get; private set; }
 
@@ -32,7 +37,7 @@ public class ItemTabUI : MonoBehaviour
     [SerializeField] private Button costumeButton;
 
     [Header("디버그")]
-    [SerializeField] private bool enableDebugLogs = false;
+    [SerializeField] private bool enableDebugLogs = true;
 
     // 상태 관리
     private bool isInitialized = false;
@@ -43,8 +48,9 @@ public class ItemTabUI : MonoBehaviour
     public delegate void OnItemTabRefreshed();
     public event OnItemTabRefreshed OnItemTabRefreshedEvent;
 
-    public delegate void OnItemPreviewClicked(ItemData.ItemType itemType, ItemData itemData);
-    public event OnItemPreviewClicked OnItemPreviewClickedEvent;
+    // OnItemPreviewClickedEvent는 더 이상 사용되지 않음 (ReusableButton으로 대체)
+    // public delegate void OnItemPreviewClicked(ItemData.ItemType itemType, ItemData itemData);
+    // public event OnItemPreviewClicked OnItemPreviewClickedEvent;
 
     private void Awake()
     {
@@ -66,6 +72,26 @@ public class ItemTabUI : MonoBehaviour
         yield return new WaitForSeconds(0.1f);
         
         InitializeItemTab();
+    }
+    
+    /// <summary>
+    /// 외부에서 강제 초기화할 수 있는 메서드
+    /// </summary>
+    public void ForceInitialize()
+    {
+        if (!isInitialized)
+        {
+            // GameObject가 비활성화된 경우 직접 초기화
+            if (!gameObject.activeInHierarchy)
+            {
+                InitializeItemTab();
+                isInitialized = true;
+            }
+            else
+            {
+                StartCoroutine(WaitForManagersAndInitialize());
+            }
+        }
     }
 
     private void OnEnable()
@@ -162,9 +188,8 @@ public class ItemTabUI : MonoBehaviour
                 }
                 hatReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Hat);
                 
-                // 기존 onClick도 유지 (호환성)
+                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
                 hatButton.onClick.RemoveAllListeners();
-                hatButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Hat));
             }
 
             // 얼굴 버튼 - ReusableButton으로 설정
@@ -177,9 +202,8 @@ public class ItemTabUI : MonoBehaviour
                 }
                 faceReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Face);
                 
-                // 기존 onClick도 유지 (호환성)
+                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
                 faceButton.onClick.RemoveAllListeners();
-                faceButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Face));
             }
 
             // 의상 버튼 - ReusableButton으로 설정
@@ -192,9 +216,8 @@ public class ItemTabUI : MonoBehaviour
                 }
                 costumeReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Costume);
                 
-                // 기존 onClick도 유지 (호환성)
+                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
                 costumeButton.onClick.RemoveAllListeners();
-                costumeButton.onClick.AddListener(() => OnItemButtonClicked(ItemData.ItemType.Costume));
             }
 
             // 아이템 뽑기 버튼 (선택 사항: 연결만, 동작은 추후)
@@ -299,7 +322,9 @@ public class ItemTabUI : MonoBehaviour
     private bool IsCurrentWormEgg()
     {
         var worm = WormManager.Instance?.GetCurrentWorm();
-        return worm != null && worm.lifeStage == 0; // 0 = Egg
+        bool isEgg = worm != null && worm.lifeStage == 0; // 0 = Egg
+        LogDebug($"[ItemTabUI] IsCurrentWormEgg: worm={worm?.name ?? "null"}, lifeStage={worm?.lifeStage ?? -1}, isEgg={isEgg}");
+        return isEgg;
     }
 
     private void UpdateButtonsInteractable()
@@ -326,6 +351,7 @@ public class ItemTabUI : MonoBehaviour
             if (IsCurrentWormEgg())
             {
                 // 알 단계: 장착 불가 표기
+                LogDebug("[ItemTabUI] 알 상태 - 장착 불가 상태 설정");
                 SetUnavailableState(hatPreviewImage, hatNameText);
                 SetUnavailableState(facePreviewImage, faceNameText);
                 SetUnavailableState(costumePreviewImage, costumeNameText);
@@ -414,18 +440,24 @@ public class ItemTabUI : MonoBehaviour
     {
         try
         {
+            LogDebug($"[ItemTabUI] RefreshPreview 호출됨 - Type: {type}, IsEgg: {IsCurrentWormEgg()}");
+            
             if (IsCurrentWormEgg())
             {
+                LogDebug($"[ItemTabUI] 알 상태 - SetNoneState 호출");
                 SetNoneState(previewImage, nameText, type);
                 return;
             }
             // 현재 착용된 아이템 ID 가져오기
             string itemId = GetEquippedItemId(type);
+            LogDebug($"[ItemTabUI] 착용된 아이템 ID: {itemId}");
             var item = ItemManager.Instance?.GetItemById(itemId);
+            LogDebug($"[ItemTabUI] 아이템 데이터: {item?.itemName ?? "null"}");
 
             // UI 업데이트
             if (item != null && !string.IsNullOrEmpty(item.itemId))
             {
+                LogDebug($"[ItemTabUI] 아이템 있음 - UI 업데이트 시작");
                 // 프리뷰 이미지 (SpriteManager에서 스프라이트 조회)
                 if (previewImage != null)
                 {
@@ -490,15 +522,27 @@ public class ItemTabUI : MonoBehaviour
 
     private void SetUnavailableState(Image previewImage, TMP_Text nameText)
     {
+        LogDebug($"[ItemTabUI] SetUnavailableState 호출됨 - previewImage: {previewImage != null}, nameText: {nameText != null}");
+        
         if (previewImage != null)
         {
             previewImage.sprite = null;
             previewImage.color = new Color(1f, 1f, 1f, 0.5f);
+            LogDebug("[ItemTabUI] previewImage 설정 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[ItemTabUI] previewImage가 null입니다!");
         }
 
         if (nameText != null)
         {
             nameText.text = "장착 불가";
+            LogDebug($"[ItemTabUI] nameText 설정 완료: {nameText.text}");
+        }
+        else
+        {
+            Debug.LogWarning("[ItemTabUI] nameText가 null입니다!");
         }
     }
 
@@ -593,10 +637,15 @@ public class ItemTabUI : MonoBehaviour
     /// <summary>
     /// 아이템 버튼 클릭 이벤트
     /// </summary>
+    // OnItemButtonClicked 메서드는 ReusableButton으로 대체되어 더 이상 사용되지 않음
+    // ReusableButton의 ButtonAction.OpenItemPopup이 직접 PopupManager.OpenItemPopup을 호출함
+    /*
     private void OnItemButtonClicked(ItemData.ItemType itemType)
     {
         try
         {
+            LogDebug($"[ItemTabUI] {itemType} 아이템 버튼 클릭됨");
+            
             // 현재 착용된 아이템 가져오기
             ItemData currentItem = null;
             if (currentEquippedItems.TryGetValue(itemType, out currentItem))
@@ -608,17 +657,19 @@ public class ItemTabUI : MonoBehaviour
                 LogDebug($"[ItemTabUI] {itemType} 아이템 클릭: 착용된 아이템 없음");
             }
 
-            // 이벤트 발생
-            OnItemPreviewClickedEvent?.Invoke(itemType, currentItem);
+            // 이벤트 발생 (더 이상 사용되지 않음)
+            // OnItemPreviewClickedEvent?.Invoke(itemType, currentItem);
 
-            // 아이템 선택 팝업 열기 (추후 구현)
-            LogDebug($"[ItemTabUI] {itemType} 아이템 선택 팝업 열기 요청");
+            // 아이템 팝업 열기
+            LogDebug($"[ItemTabUI] OpenItemPopup 호출: {itemType}");
+            PopupManager.Instance?.OpenItemPopup(itemType);
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[ItemTabUI] 아이템 버튼 클릭 처리 중 오류: {ex.Message}");
         }
     }
+    */
 
 
 
@@ -676,6 +727,7 @@ public class ItemTabUI : MonoBehaviour
     {
         // 이벤트 초기화
         OnItemTabRefreshedEvent = null;
-        OnItemPreviewClickedEvent = null;
+        // OnItemPreviewClickedEvent = null; // 더 이상 사용되지 않음
+    }
     }
 }

@@ -2,7 +2,9 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-public class AnimationManager : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class AnimationManager : MonoBehaviour
 {
     [Header("애니메이터")]
     [SerializeField] private Animator animator;
@@ -383,5 +385,6 @@ public class AnimationManager : MonoBehaviour
         OnAnimationStartedEvent = null;
         OnAnimationCompletedEvent = null;
         OnAnimationEventEvent = null;
+    }
     }
 }

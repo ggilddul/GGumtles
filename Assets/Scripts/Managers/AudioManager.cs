@@ -1,8 +1,12 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using GGumtles.Data;
+using GGumtles.Managers;
 
-public class AudioManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
@@ -169,9 +173,9 @@ public class AudioManager : MonoBehaviour
 
     private IEnumerator InitializeAudioSystemCoroutine()
     {
-        // 추가 안전 대기
+        // 최소한의 대기만 (딜레이 최소화)
         yield return new WaitForEndOfFrame();
-        yield return new WaitForSeconds(0.2f);
+        // yield return new WaitForSeconds(0.2f); // ← 딜레이 제거!
         
         try
         {
@@ -307,7 +311,13 @@ public class AudioManager : MonoBehaviour
     {
         try
         {
-            if (!isInitialized || clip == null) return;
+            if (clip == null) return;
+
+            // 초기화되지 않았어도 사운드 재생 시도
+            if (!isInitialized)
+            {
+                Debug.LogWarning("[AudioManager] 아직 초기화되지 않았지만 SFX 재생 시도");
+            }
 
             if (sfxSource != null && sfxSource.isActiveAndEnabled)
             {
@@ -360,10 +370,17 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     public void PlayButtonSound(int soundIndex)
     {
-        if (!isInitialized || buttonClips == null || soundIndex < 0 || soundIndex >= buttonClips.Length)
+        // 초기화 체크 완화 - 사운드 재생 우선
+        if (buttonClips == null || soundIndex < 0 || soundIndex >= buttonClips.Length)
         {
             Debug.LogWarning($"[AudioManager] 잘못된 버튼 사운드 인덱스: {soundIndex}");
             return;
+        }
+
+        // 초기화되지 않았어도 사운드 재생 시도
+        if (!isInitialized)
+        {
+            Debug.LogWarning("[AudioManager] 아직 초기화되지 않았지만 사운드 재생 시도");
         }
 
         PlaySFX(buttonClips[soundIndex]);
@@ -686,5 +703,6 @@ public class AudioManager : MonoBehaviour
         {
             Debug.LogWarning($"[AudioManager] 정리 중 오류: {ex.Message}");
         }
+    }
     }
 }

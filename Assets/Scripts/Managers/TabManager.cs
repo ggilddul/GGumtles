@@ -3,8 +3,11 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using GGumtles.Managers;
 
-public class TabManager : MonoBehaviour
+namespace GGumtles.Managers
+{
+    public class TabManager : MonoBehaviour
 {
     public static TabManager Instance { get; private set; }
 
@@ -154,7 +157,7 @@ public class TabManager : MonoBehaviour
 
             // 버튼 이벤트 설정
             int tabIndex = i; // 클로저를 위한 변수 캡처
-            tabButtons[i].onClick.AddListener(() => SwitchToTab(tabIndex));
+            tabButtons[i].onClick.AddListener(() => OpenTab(tabIndex));
         }
 
         // 모든 탭 비활성화 후 기본 탭 설정
@@ -320,30 +323,15 @@ public class TabManager : MonoBehaviour
     /// </summary>
     private void ActivateCountButtonForTab(int tabIndex)
     {
-        // 0, 1, 2 탭 간의 전환에서는 실행하지 않음 (이미 AcornCount가 활성화되어 있음)
-        if (tabIndex >= 0 && tabIndex <= 2)
-        {
-            Debug.Log($"[TabManager] 탭 {tabIndex} (Play/Worm/Home) - AcornCount 유지");
-            return;
-        }
-        
         // TopBarManager가 있으면 해당 탭에 맞는 카운트 버튼 활성화
         if (TopBarManager.Instance != null)
         {
-            switch (tabIndex)
-            {
-                case 3: // Item 탭
-                    TopBarManager.Instance.ActivateDiamondCountButton();
-                    Debug.Log("[TabManager] Item 탭 - DiamondCount 활성화");
-                    break;
-                case 4: // Achievement 탭
-                    TopBarManager.Instance.ActivateMedalCountButton();
-                    Debug.Log("[TabManager] Achievement 탭 - MedalCount 활성화");
-                    break;
-                default:
-                    Debug.LogWarning($"[TabManager] 알 수 없는 탭 인덱스: {tabIndex}");
-                    break;
-            }
+            TopBarManager.Instance.ActivateCountButtonForTab(tabIndex);
+            Debug.Log($"[TabManager] 탭 {tabIndex} - CountButton 활성화 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[TabManager] TopBarManager.Instance가 null입니다.");
         }
     }
 
@@ -384,7 +372,7 @@ public class TabManager : MonoBehaviour
 
         // 버튼 이벤트 설정
         int tabIndex = newIndex;
-        button.onClick.AddListener(() => SwitchToTab(tabIndex));
+        button.onClick.AddListener(() => OpenTab(tabIndex));
 
         Debug.Log($"[TabManager] 탭 추가: {tabData.tabName} (인덱스: {newIndex})");
     }
@@ -436,5 +424,6 @@ public class TabManager : MonoBehaviour
     {
         // 이벤트 초기화
         OnTabChangedEvent = null;
+    }
     }
 }

@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[System.Serializable]
-public class AchievementWormData
+namespace GGumtles.Data
+{
+    [System.Serializable]
+    public class AchievementWormData
 {
     public string achievementId;
     public int wormId;
@@ -45,4 +47,5 @@ public class GameSaveData
     [Header("설정")]
     public AudioOption sfxOption = AudioOption.Medium;
     public AudioOption bgmOption = AudioOption.Medium;
+    }
 }

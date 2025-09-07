@@ -1,7 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using GGumtles.Managers;
 
-public class PickDiamond : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class PickDiamond : MonoBehaviour
 {
     [Header("UI 컴포넌트")]
     [SerializeField] private Image diamondImage;
@@ -501,5 +504,6 @@ public class PickDiamond : MonoBehaviour
         // 이벤트 구독 해제
         OnDiamondPickedEvent = null;
         OnDiamondPickStartedEvent = null;
+    }
     }
 }

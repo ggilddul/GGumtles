@@ -1,8 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using GGumtles.Data;
+using GGumtles.Utils;
 
-public class WormEvolvePopupUI : MonoBehaviour
+namespace GGumtles.UI
+{
+    public class WormEvolvePopupUI : MonoBehaviour
 {
     [Header("UI 요소")]
     [SerializeField] private TMP_Text beforeText;          // 진화 전 텍스트
@@ -194,5 +198,6 @@ public class WormEvolvePopupUI : MonoBehaviour
         {
             Debug.Log(message);
         }
+    }
     }
 }
