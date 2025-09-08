@@ -75,7 +75,7 @@ namespace GGumtles.UI
             if (bounceCount < maxBounces && Mathf.Abs(velocity.y) > 200f)
             {
                 // 반사(감쇠)
-                velocity.y = Mathf.Abs(velocity.y) * 0.5f;
+                velocity.y = Mathf.Abs(velocity.y) * 0.3f;
                 bounceCount++;
                 if (enableSound) AudioManager.Instance?.PlaySFX(AudioManager.SFXType.ItemDrop);
                 if (bounceParticle != null) Instantiate(bounceParticle, transform.position, Quaternion.identity);

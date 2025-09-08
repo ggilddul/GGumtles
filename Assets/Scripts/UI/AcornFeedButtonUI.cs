@@ -142,8 +142,8 @@ namespace GGumtles.UI
             if (acornButtonText != null)
             {
                 int seconds = Mathf.CeilToInt(remainingTime);
-                acornButtonText.text = $"{seconds}초";
-                LogDebug($"[AcornFeedButtonUI] 카운트다운: {seconds}초");
+                acornButtonText.text = $"{seconds}";
+                LogDebug($"[AcornFeedButtonUI] 카운트다운: {seconds}");
             }
         }
 

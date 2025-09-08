@@ -17,12 +17,15 @@ namespace GGumtles.UI
     {
         [Header("필수 컴포넌트")]
         [SerializeField] private Image wormImage;                  // UI 이미지
-        [SerializeField] private RectTransform boundaryRect;       // 이동 경계 (캔버스 내 RectTransform)
 
         [Header("이동 설정")]
         [SerializeField] private Vector2 moveSpeedRange = new Vector2(80f, 140f); // px/sec
         [SerializeField] private Vector2 moveDurationRange = new Vector2(2f, 4f); // sec
         [SerializeField] private Vector2 idleDurationRange = new Vector2(1f, 2.5f); // sec
+
+        [Header("이동 범위 설정")]
+        [SerializeField] private Vector2 xRange = new Vector2(-400f, 400f); // X축 이동 범위
+        [SerializeField] private Vector2 yRange = new Vector2(-100f, 0f); // Y축 이동 범위
 
         [Header("디버그")]
         [SerializeField] private bool enableDebugLogs = false;
@@ -60,6 +63,12 @@ namespace GGumtles.UI
 
         private void Update()
         {
+            // 알상태에서는 움직이지 않음
+            if (IsEggStage())
+            {
+                return;
+            }
+            
             UpdateState(Time.deltaTime);
             ClampInsideBoundary();
         }
@@ -76,17 +85,18 @@ namespace GGumtles.UI
             }
             else // Move
             {
-                // 목표 방향으로 이동 (X 중심 이동)
+                // 목표 방향으로 이동 (X, Y 모두 이동)
                 Vector3 pos = selfRect.anchoredPosition;
-                float dir = Mathf.Sign(targetPosition.x - pos.x);
-                pos.x += dir * currentSpeed * dt;
+                Vector3 direction = (targetPosition - pos).normalized;
+                pos += direction * currentSpeed * dt;
                 selfRect.anchoredPosition = pos;
 
-                // 방향에 따라 반전
-                SetFacing(dir > 0f);
+                // X 방향에 따라 반전
+                SetFacing(direction.x > 0f);
 
                 // 도착 또는 시간 만료 시 대기 전환
-                if (Mathf.Abs(targetPosition.x - pos.x) < 2f || stateTimer <= 0f)
+                float distance = Vector3.Distance(pos, targetPosition);
+                if (distance < 5f || stateTimer <= 0f)
                 {
                     EnterIdle();
                 }
@@ -122,38 +132,39 @@ namespace GGumtles.UI
 
         private void ClampInsideBoundary()
         {
-            if (boundaryRect == null) return;
-            // anchoredPosition 기준으로 경계 클램프
-            var min = GetBoundaryMinLocal();
-            var max = GetBoundaryMaxLocal();
-
-            Vector2 size = selfRect.sizeDelta * baseScale; // 대략적 폭 고려
-            float halfWidth = size.x * 0.5f;
-            float clampedX = Mathf.Clamp(selfRect.anchoredPosition.x, min.x + halfWidth, max.x - halfWidth);
-            selfRect.anchoredPosition = new Vector2(clampedX, selfRect.anchoredPosition.y);
+            // 웜의 크기를 고려한 여백 계산
+            Vector2 wormSize = selfRect.sizeDelta * baseScale;
+            float halfWidth = wormSize.x * 0.5f;
+            float halfHeight = wormSize.y * 0.5f;
+            
+            // 인스펙터 설정에 따른 범위에서 클램핑
+            Vector2 currentPos = selfRect.anchoredPosition;
+            float clampedX = Mathf.Clamp(currentPos.x, xRange.x + halfWidth, xRange.y - halfWidth);
+            float clampedY = Mathf.Clamp(currentPos.y, yRange.x + halfHeight, yRange.y - halfHeight);
+            
+            // 위치가 변경되었을 때만 업데이트
+            if (Mathf.Abs(currentPos.x - clampedX) > 0.1f || Mathf.Abs(currentPos.y - clampedY) > 0.1f)
+            {
+                selfRect.anchoredPosition = new Vector2(clampedX, clampedY);
+                LogDebug($"[WormMove] 경계 클램핑: ({currentPos.x:F1}, {currentPos.y:F1}) → ({clampedX:F1}, {clampedY:F1})");
+            }
         }
 
         private Vector3 GetRandomPointInsideBoundary()
         {
-            if (boundaryRect == null)
-                return selfRect.anchoredPosition;
-
-            var min = GetBoundaryMinLocal();
-            var max = GetBoundaryMaxLocal();
-            float x = Random.Range(min.x, max.x);
-            return new Vector3(x, selfRect.anchoredPosition.y, 0f);
+            // 웜의 크기를 고려한 여백 계산
+            Vector2 wormSize = selfRect.sizeDelta * baseScale;
+            float halfWidth = wormSize.x * 0.5f;
+            float halfHeight = wormSize.y * 0.5f;
+            
+            // 인스펙터 설정에 따른 범위에서 랜덤 위치 생성
+            float x = Random.Range(xRange.x + halfWidth, xRange.y - halfWidth);
+            float y = Random.Range(yRange.x + halfHeight, yRange.y - halfHeight);
+            
+            LogDebug($"[WormMove] 랜덤 목표 위치 생성: ({x:F1}, {y:F1}) [X범위: {xRange.x:F1}~{xRange.y:F1}, Y범위: {yRange.x:F1}~{yRange.y:F1}]");
+            return new Vector3(x, y, 0f);
         }
 
-        private Vector2 GetBoundaryMinLocal()
-        {
-            // 같은 부모(캔버스) 기준으로 간주: boundary와 self가 동일한 좌표계(anchoredPosition)
-            return boundaryRect.anchoredPosition - boundaryRect.sizeDelta * 0.5f;
-        }
-
-        private Vector2 GetBoundaryMaxLocal()
-        {
-            return boundaryRect.anchoredPosition + boundaryRect.sizeDelta * 0.5f;
-        }
 
         private void RefreshSprite()
         {
@@ -229,15 +240,36 @@ namespace GGumtles.UI
             RefreshSprite();
         }
 
+        /// <summary>
+        /// 현재 웜이 알상태인지 확인
+        /// </summary>
+        private bool IsEggStage()
+        {
+            var worm = WormManager.Instance?.GetCurrentWorm();
+            if (worm == null) return false;
+            
+            // LifeStage.Egg (0)인지 확인
+            return worm.lifeStage == 0;
+        }
+
+        private void LogDebug(string message)
+        {
+            if (enableDebugLogs)
+            {
+                Debug.Log(message);
+            }
+        }
+
         private void OnDrawGizmosSelected()
         {
-            if (boundaryRect == null || selfRect == null) return;
-            var min = GetBoundaryMinLocal();
-            var max = GetBoundaryMaxLocal();
-            Vector3 a = new Vector3(min.x, max.y, 0f);
-            Vector3 b = new Vector3(max.x, max.y, 0f);
-            Vector3 c = new Vector3(max.x, min.y, 0f);
-            Vector3 d = new Vector3(min.x, min.y, 0f);
+            if (selfRect == null) return;
+            
+            // 인스펙터 설정에 따른 이동 범위를 Gizmo로 표시
+            Vector3 a = new Vector3(xRange.x, yRange.y, 0f);
+            Vector3 b = new Vector3(xRange.y, yRange.y, 0f);
+            Vector3 c = new Vector3(xRange.y, yRange.x, 0f);
+            Vector3 d = new Vector3(xRange.x, yRange.x, 0f);
+            
             Gizmos.color = Color.yellow;
             Gizmos.DrawLine(selfRect.TransformPoint(a), selfRect.TransformPoint(b));
             Gizmos.DrawLine(selfRect.TransformPoint(b), selfRect.TransformPoint(c));

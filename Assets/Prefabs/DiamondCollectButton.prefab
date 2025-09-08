@@ -12,8 +12,8 @@ GameObject:
   - component: {fileID: 1771331881864503339}
   - component: {fileID: 932036110754669640}
   - component: {fileID: 2538935547948579545}
-  - component: {fileID: 2702363348302624249}
   - component: {fileID: 468451685222741160}
+  - component: {fileID: 4584994670156947360}
   m_Layer: 5
   m_Name: DiamondCollectButton
   m_TagString: Untagged
@@ -122,21 +122,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &2702363348302624249
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 900365594635479071}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  buttonAction: 7
-  actionParameter: -1
-  actionParameterString: 
 --- !u!114 &468451685222741160
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -162,4 +147,19 @@ MonoBehaviour:
   enableParticleEffect: 0
   dropParticlePrefab: {fileID: 0}
   bounceParticlePrefab: {fileID: 0}
+  enableDebugLogs: 0
+--- !u!114 &4584994670156947360
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900365594635479071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fec08a36b6d4467c87da66a605e1b95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  diamondCollectButtonPrefab: {fileID: 2538935547948579545}
+  diamondValue: 1
   enableDebugLogs: 0

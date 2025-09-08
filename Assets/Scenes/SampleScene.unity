@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3bb19b09bc8f84df1aa64065736afd9a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  feedAcornPrefab: {fileID: 0}
+  feedAcornPrefab: {fileID: 8315984189467255786, guid: 49e30b6cf73b74eaf895b7c298e2ac2b, type: 3}
   dropOrigin: {fileID: 9649}
   dropParent: {fileID: 9649}
   xRange: {x: -480, y: 480}
@@ -246,42 +246,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4287643}
   m_CullTransparentMesh: 1
---- !u!1 &5278258
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 5278259}
-  m_Layer: 5
-  m_Name: WormBoundary
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &5278259
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5278258}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 908155170}
-  m_Father: {fileID: 1927399520}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0}
-  m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 920}
-  m_SizeDelta: {x: 960, y: 800}
-  m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &15295398
 GameObject:
   m_ObjectHideFlags: 0
@@ -7385,17 +7349,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 908155169}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 354540901}
-  m_Father: {fileID: 5278259}
+  m_Father: {fileID: 1927399520}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -430.00003}
   m_SizeDelta: {x: 300, y: 300}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &908155171
@@ -7411,10 +7375,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wormImage: {fileID: 354540902}
-  boundaryRect: {fileID: 5278259}
   moveSpeedRange: {x: 60, y: 120}
-  moveDurationRange: {x: 2, y: 5}
-  idleDurationRange: {x: 1, y: 3}
+  moveDurationRange: {x: 1, y: 5}
+  idleDurationRange: {x: 1, y: 10}
+  xRange: {x: -440, y: 440}
+  yRange: {x: -830, y: -30}
   enableDebugLogs: 0
 --- !u!1 &956673279 stripped
 GameObject:
@@ -13600,7 +13565,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 998188561}
-  - {fileID: 5278259}
+  - {fileID: 908155170}
   - {fileID: 9649}
   - {fileID: 1311121789}
   - {fileID: 2138762487}
