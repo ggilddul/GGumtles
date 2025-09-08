@@ -18,6 +18,7 @@ namespace GGumtles.UI
 
     [Header("드롭 위치")]
     [SerializeField] private Transform dropOrigin;
+    [SerializeField] private Transform dropParent; // 드롭 프리팹 부모 (예: TreeButton/전용 컨테이너)
     [SerializeField] private float dropRangeX = 200f;
     [SerializeField] private float dropRangeY = 20f;
 
@@ -83,7 +84,7 @@ namespace GGumtles.UI
         if (acornPrefab == null) return;
 
         Vector3 dropPosition = GetRandomDropPosition();
-        Instantiate(acornPrefab, dropPosition, Quaternion.identity);
+        Instantiate(acornPrefab, dropPosition, Quaternion.identity, dropParent != null ? dropParent : dropOrigin);
         
         LogDebug("[TreeController] 도토리 드롭");
     }
@@ -96,7 +97,7 @@ namespace GGumtles.UI
         if (diamondPrefab == null) return;
 
         Vector3 dropPosition = GetRandomDropPosition();
-        Instantiate(diamondPrefab, dropPosition, Quaternion.identity);
+        Instantiate(diamondPrefab, dropPosition, Quaternion.identity, dropParent != null ? dropParent : dropOrigin);
         
         LogDebug("[TreeController] 다이아몬드 드롭");
     }

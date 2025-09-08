@@ -102,6 +102,13 @@ namespace GGumtles.Managers
             Debug.Log("[MinigameManager] TopBar를 GameState로 변경");
         }
         
+        // BottomBar를 ADBar로 변경
+        if (BottomBarManager.Instance != null)
+        {
+            BottomBarManager.Instance.SwitchToBar(BottomBarManager.BarType.ADBar);
+            Debug.Log("[MinigameManager] BottomBar를 ADBar로 변경");
+        }
+        
         // 해당 게임 타입 패널 생성
         CreateGameTypePanel(gameType);
     }
@@ -142,6 +149,13 @@ namespace GGumtles.Managers
         {
             TopBarManager.Instance.SetTopBarType(TopBarManager.TopBarType.NonGameState);
             Debug.Log("[MinigameManager] TopBar를 NonGameState로 변경");
+        }
+        
+        // BottomBar를 TabBar로 변경
+        if (BottomBarManager.Instance != null)
+        {
+            BottomBarManager.Instance.SwitchToBar(BottomBarManager.BarType.TabBar);
+            Debug.Log("[MinigameManager] BottomBar를 TabBar로 변경");
         }
     }
     

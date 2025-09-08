@@ -359,12 +359,14 @@ namespace GGumtles.UI
             // SpriteManager를 통해 현재 웜의 스프라이트 가져오기
             if (SpriteManager.Instance != null)
             {
-                var completedWormSprite = SpriteManager.Instance.GetHomeTabWormSprite(worm);
+                var completedWormSprite = SpriteManager.Instance.CreateCompletedWormSprite(worm);
                 if (completedWormSprite != null && completedWormSprite.sprite != null)
                 {
                     wormSpriteImage.sprite = completedWormSprite.sprite;
+                    // Life Stage Scale 적용 (절대값으로 설정, 누적 방지)
+                    wormSpriteImage.transform.localScale = Vector3.one * completedWormSprite.scale;
                     wormSpriteImage.enabled = true;
-                    LogDebug($"[WormTabUI] Worm Sprite 업데이트: {worm.name}");
+                    LogDebug($"[WormTabUI] Worm Sprite 업데이트: {worm.name}, Scale: {completedWormSprite.scale}");
                 }
                 else
                 {

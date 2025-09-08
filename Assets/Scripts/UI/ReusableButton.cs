@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using GGumtles.Data;
 using GGumtles.Managers;
+using System.Linq;
 
 namespace GGumtles.UI
 {
@@ -58,10 +59,12 @@ namespace GGumtles.UI
         [Header("액션 설정")]
         [SerializeField] private ButtonAction buttonAction;
         [SerializeField] private int actionParameter = -1; // 탭 인덱스, 팝업 타입 등
+        [SerializeField] private string actionParameterString = string.Empty; // ID 등 문자열 파라미터
         
         // 디버그용 public 프로퍼티
         public ButtonAction ButtonAction => buttonAction;
         public int ActionParameter => actionParameter;
+        public string ActionParameterString => actionParameterString;
         
         // [Header("디버그 설정")] // 필드와 함께 주석 처리
         // enableDebugLogs 제거 - 사용되지 않음
@@ -284,15 +287,17 @@ namespace GGumtles.UI
                 // 업적 팝업 관련 (통합)
                 case ButtonAction.OpenAchievementPopup:
                     int achievementIndex = actionParameter;
-                    // AchievementManager에서 해금 상태 확인하여 적절한 팝업 열기
                     if (AchievementManager.Instance != null)
                     {
                         var allDefinitions = AchievementManager.Instance.GetAllDefinitions();
-                        // -1이면 첫 번째 업적(0) 열기, 그 외에는 지정된 인덱스 사용
-                        if (achievementIndex == -1)
+                        // 문자열 ID가 지정되었으면 ID로 인덱스 해석
+                        if (!string.IsNullOrEmpty(actionParameterString))
                         {
-                            achievementIndex = 0;
+                            var idx = allDefinitions.FindIndex(d => d.achievementId == actionParameterString);
+                            if (idx >= 0) achievementIndex = idx;
                         }
+                        // -1이면 0으로
+                        if (achievementIndex == -1) achievementIndex = 0;
                         if (achievementIndex >= 0 && achievementIndex < allDefinitions.Count)
                         {
                             var achievementData = allDefinitions[achievementIndex];
@@ -398,6 +403,15 @@ namespace GGumtles.UI
         {
             buttonAction = action;
             actionParameter = parameter;
+        }
+
+        /// <summary>
+        /// 버튼 액션 설정 (문자열 파라미터)
+        /// </summary>
+        public void SetActionString(ButtonAction action, string parameter)
+        {
+            buttonAction = action;
+            actionParameterString = parameter ?? string.Empty;
         }
     }
 }

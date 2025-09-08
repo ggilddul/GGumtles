@@ -268,8 +268,9 @@ namespace GGumtles.UI
                         if (completedWormSprite != null)
                         {
                             wormImage.sprite = completedWormSprite.sprite;
+                            // Life Stage Scale 적용
                             wormImage.rectTransform.localScale = Vector3.one * completedWormSprite.scale;
-                            LogDebug($"[GfcPopupUI] 벌레 이미지 설정 완료: {wormData.name}");
+                            LogDebug($"[GfcPopupUI] 벌레 이미지 설정 완료: {wormData.name}, Scale: {completedWormSprite.scale}");
                         }
                         else
                         {

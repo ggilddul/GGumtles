@@ -134,8 +134,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttonAction: 7
+  buttonAction: 6
   actionParameter: -1
+  actionParameterString: 
 --- !u!114 &7841341881818334901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -153,12 +154,12 @@ MonoBehaviour:
   gravity: 980
   bounceHeight: 50
   maxBounces: 2
-  enableRotation: 1
+  enableRotation: 0
   rotationSpeed: 180
-  enableScaleAnimation: 1
+  enableScaleAnimation: 0
   scaleAnimationDuration: 0.3
-  enableDropSound: 1
-  enableParticleEffect: 1
+  enableDropSound: 0
+  enableParticleEffect: 0
   dropParticlePrefab: {fileID: 0}
   bounceParticlePrefab: {fileID: 0}
   enableDebugLogs: 0

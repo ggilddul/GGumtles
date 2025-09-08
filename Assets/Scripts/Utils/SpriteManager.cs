@@ -482,8 +482,15 @@ namespace GGumtles.Utils
         var completedSprite = CreateCompletedWormSprite(wormData);
         if (completedSprite != null)
         {
-            // 홈 탭용 추가 크기 조절 (필요시)
-            completedSprite.size *= 1.2f; // 홈 탭에서는 20% 더 크게
+            // 홈 탭용 추가 크기 조절 (캐시된 객체를 수정하지 않고 새 객체 반환)
+            return new CompletedWormSprite
+            {
+                sprite = completedSprite.sprite,
+                size = completedSprite.size * 1.2f, // 홈 탭에서는 20% 더 크게
+                scale = completedSprite.scale * 1.2f, // scale도 함께 조절
+                lifeStage = completedSprite.lifeStage,
+                equippedItems = completedSprite.equippedItems
+            };
         }
         return completedSprite;
     }

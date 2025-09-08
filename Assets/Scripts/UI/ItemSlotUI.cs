@@ -84,6 +84,13 @@ namespace GGumtles.UI
             Debug.Log($"[ItemSlotUI] Initialize 호출됨 - ItemType: {itemType}");
             currentItemType = itemType;
             
+            // ItemManager 초기화 가드: 초기화 전이면 한 프레임 지연 후 재시도
+            if (ItemManager.Instance == null || !ItemManager.Instance.IsInitialized)
+            {
+                StartCoroutine(DelayedInitialize(itemType));
+                return;
+            }
+            
             // 기존 아이템 버튼들 제거
             ClearItemButtons();
             
@@ -98,12 +105,28 @@ namespace GGumtles.UI
             // 현재 착용 아이템 정보 업데이트
             UpdateEquippedItemInfo();
             
+            // 스프라이트 매니저/데이터가 늦게 준비되는 경우를 대비해 한 프레임 뒤 UI 리프레시
+            StartCoroutine(RefreshButtonsNextFrame());
+            
             Debug.Log($"[ItemSlotUI] 아이템 슬롯 초기화 완료: {itemType}, 아이템 수: {items.Count}");
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[ItemSlotUI] 아이템 슬롯 초기화 중 오류: {ex.Message}");
         }
+    }
+
+    private System.Collections.IEnumerator DelayedInitialize(ItemData.ItemType itemType)
+    {
+        // 한 프레임 대기 후 재시도
+        yield return null;
+        // 여전히 초기화 전이면 최대 몇 프레임 더 대기
+        int safety = 10;
+        while ((ItemManager.Instance == null || !ItemManager.Instance.IsInitialized) && safety-- > 0)
+        {
+            yield return null;
+        }
+        Initialize(itemType);
     }
 
     /// <summary>
@@ -253,14 +276,36 @@ namespace GGumtles.UI
         try
         {
             if (ItemManager.Instance == null) return false;
-            
-            var ownedItems = ItemManager.Instance.GetOwnedItems();
-            return ownedItems.Any(item => item.itemId == itemId);
+            return ItemManager.Instance.HasItem(itemId);
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"[ItemSlotUI] 아이템 보유 상태 확인 중 오류: {ex.Message}");
             return false;
+        }
+    }
+
+    private System.Collections.IEnumerator RefreshButtonsNextFrame()
+    {
+        yield return null;
+        try
+        {
+            foreach (var b in itemButtons)
+            {
+                if (b != null && b.ItemData != null)
+                {
+                    // 이미지/상태 재계산
+                    b.Initialize(b.ItemData, currentItemType);
+                    bool isOwned = IsItemOwned(b.ItemData.itemId);
+                    bool isEquipped = IsItemEquipped(b.ItemData.itemId);
+                    SetItemButtonVisualState(b, isOwned, isEquipped);
+                }
+            }
+            UpdateEquippedItemInfo();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 버튼 리프레시 중 오류: {ex.Message}");
         }
     }
 

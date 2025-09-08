@@ -216,6 +216,13 @@ namespace GGumtles.UI
             LogDebug($"[AchieveTabUI] 버튼 초기화 시작: {definition.achievementTitle} (ID: {definition.achievementId})");
             buttonUI.Initialize(definition, activeButtons.Count);
             LogDebug($"[AchieveTabUI] 버튼 초기화 완료: {definition.achievementTitle} (ID: {definition.achievementId})");
+
+            // ReusableButton에 업적 ID를 액션 파라미터(문자열)로 주입하여 클릭 시 정확한 업적을 참조하도록 설정
+            var reusable = buttonObj.GetComponent<ReusableButton>();
+            if (reusable != null)
+            {
+                reusable.SetActionString(ButtonAction.OpenAchievementPopup, definition.achievementId);
+            }
             
             // 색상 설정
             SetButtonColor(buttonUI, isUnlocked);

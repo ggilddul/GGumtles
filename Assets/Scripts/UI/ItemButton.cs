@@ -139,7 +139,8 @@ namespace GGumtles.UI
             {
                 Sprite itemSprite = GetItemSprite();
                 itemImage.sprite = itemSprite;
-                itemImage.color = itemSprite != null ? Color.white : Color.clear;
+                // 스프라이트가 아직 준비되지 않아 null이면 회색 톤으로 표시해 빈칸처럼 보이지 않게 함
+                itemImage.color = itemSprite != null ? Color.white : new Color(0.85f, 0.85f, 0.85f, 1f);
             }
         }
         catch (System.Exception ex)

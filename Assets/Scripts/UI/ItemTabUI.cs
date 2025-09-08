@@ -399,11 +399,8 @@ namespace GGumtles.UI
             }
             UpdateButtonsInteractable();
             
-            // 오버뷰 렌더러 새로고침 - 제거됨
-            // if (overViewRenderer != null)
-            // {
-            //     overViewRenderer.RefreshOverview();
-            // }
+            // OverviewPanel 업데이트 (Life Stage Scale 적용)
+            UpdateOverviewPanel();
 
             LogDebug("[ItemTabUI] 모든 프리뷰 새로고침 완료");
             OnItemTabRefreshedEvent?.Invoke();
@@ -665,6 +662,57 @@ namespace GGumtles.UI
             case ItemData.ItemType.Face: return "얼굴 없음";
             case ItemData.ItemType.Costume: return "의상 없음";
             default: return "아이템 없음";
+        }
+    }
+
+    /// <summary>
+    /// OverviewPanel 업데이트 (Life Stage Scale 적용)
+    /// </summary>
+    private void UpdateOverviewPanel()
+    {
+        try
+        {
+            if (overviewImage == null)
+            {
+                LogDebug("[ItemTabUI] overviewImage가 null입니다.");
+                return;
+            }
+
+            var currentWorm = WormManager.Instance?.GetCurrentWorm();
+            if (currentWorm == null)
+            {
+                LogDebug("[ItemTabUI] 현재 웜이 없습니다.");
+                overviewImage.sprite = null;
+                overviewImage.enabled = false;
+                return;
+            }
+
+            // SpriteManager를 통해 완성된 웜 스프라이트 가져오기 (아이템 포함)
+            if (SpriteManager.Instance != null)
+            {
+                var completedWormSprite = SpriteManager.Instance.CreateCompletedWormSprite(currentWorm);
+                if (completedWormSprite != null && completedWormSprite.sprite != null)
+                {
+                    overviewImage.sprite = completedWormSprite.sprite;
+                    // Life Stage Scale 적용
+                    overviewImage.transform.localScale = Vector3.one * completedWormSprite.scale;
+                    overviewImage.enabled = true;
+                    LogDebug($"[ItemTabUI] OverviewPanel 업데이트: {currentWorm.name}, Scale: {completedWormSprite.scale}");
+                }
+                else
+                {
+                    overviewImage.enabled = false;
+                    LogDebug("[ItemTabUI] 완성된 웜 스프라이트를 찾을 수 없습니다.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[ItemTabUI] SpriteManager.Instance가 null입니다.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemTabUI] OverviewPanel 업데이트 중 오류: {ex.Message}");
         }
     }
 
