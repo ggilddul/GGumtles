@@ -152,7 +152,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttonAction: 10
+  buttonAction: 9
   actionParameter: 0
 --- !u!1 &347179291079539223
 GameObject:
@@ -442,7 +442,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttonAction: 10
+  buttonAction: 9
   actionParameter: 1
 --- !u!1 &947479418508362542
 GameObject:
@@ -2225,7 +2225,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttonAction: 10
+  buttonAction: 9
   actionParameter: 2
 --- !u!1 &8030230233514842135
 GameObject:

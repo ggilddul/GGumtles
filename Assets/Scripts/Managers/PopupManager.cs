@@ -311,13 +311,32 @@ namespace GGumtles.Managers
 
     private GameObject CreatePopupObject(PopupType type)
     {
+        Debug.Log($"[PopupManager] CreatePopupObject 호출됨 - Type: {type}");
+        Debug.Log($"[PopupManager] popupPrefabs.Count: {popupPrefabs.Count}");
+        
         if (popupPrefabs.TryGetValue(type, out GameObject prefab))
         {
+            Debug.Log($"[PopupManager] 프리팹 찾음: {prefab?.name ?? "null"}");
+            if (prefab == null)
+            {
+                Debug.LogError($"[PopupManager] {type} 프리팹이 null입니다!");
+                return null;
+            }
+            
             Transform parent = GetParentForPopupType(type);
-            return Instantiate(prefab, parent);
+            Debug.Log($"[PopupManager] 부모 Transform: {parent?.name ?? "null"}");
+            
+            GameObject instance = Instantiate(prefab, parent);
+            Debug.Log($"[PopupManager] 팝업 인스턴스 생성 완료: {instance?.name ?? "null"}");
+            return instance;
         }
         
-        Debug.LogWarning($"[PopupManager] {type} 타입의 프리팹이 등록되지 않았습니다.");
+        Debug.LogError($"[PopupManager] {type} 타입의 프리팹이 등록되지 않았습니다.");
+        Debug.LogError($"[PopupManager] 등록된 프리팹 목록:");
+        foreach (var kvp in popupPrefabs)
+        {
+            Debug.LogError($"  {kvp.Key}: {kvp.Value?.name ?? "null"}");
+        }
         return null;
     }
 
@@ -476,15 +495,28 @@ namespace GGumtles.Managers
     {
         Debug.Log($"[PopupManager] SetupItemPopup 호출됨 - ItemType: {itemPopupType}, PopupObject: {popupObject?.name}");
         
+        if (popupObject == null)
+        {
+            Debug.LogError("[PopupManager] popupObject가 null입니다!");
+            return;
+        }
+        
         var itemSlotUI = popupObject.GetComponent<ItemSlotUI>();
         if (itemSlotUI != null)
         {
             Debug.Log($"[PopupManager] ItemSlotUI 컴포넌트 찾음 - Initialize 호출");
             itemSlotUI.Initialize(itemPopupType);
+            Debug.Log($"[PopupManager] ItemSlotUI.Initialize 완료");
         }
         else
         {
-            Debug.LogWarning($"[PopupManager] ItemSlotUI 컴포넌트를 찾을 수 없습니다: {popupObject.name}");
+            Debug.LogError($"[PopupManager] ItemSlotUI 컴포넌트를 찾을 수 없습니다: {popupObject.name}");
+            Debug.LogError($"[PopupManager] popupObject의 모든 컴포넌트:");
+            var components = popupObject.GetComponents<Component>();
+            foreach (var comp in components)
+            {
+                Debug.LogError($"  - {comp.GetType().Name}");
+            }
         }
     }
 
@@ -810,6 +842,15 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
+    /// Draw 버튼 클릭 시 DrawConfirm 팝업 열기 (ItemDraw 팝업을 거치지 않고 바로)
+    /// </summary>
+    public void OpenDrawConfirmPopupDirect(ItemData.ItemType itemType)
+    {
+        Debug.Log($"[PopupManager] OpenDrawConfirmPopupDirect 호출됨 - ItemType: {itemType}");
+        OpenPopup(PopupType.DrawConfirm, PopupPriority.Normal, itemType);
+    }
+
+    /// <summary>
     /// 뽑기 결과 팝업 열기 (획득한 아이템과 함께)
     /// </summary>
     public void OpenDrawResultPopup(ItemData itemData)
@@ -843,12 +884,53 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
-    /// 아이템 팝업 열기 (통합)
+    /// 실제 아이템 뽑기 실행: 타입별 랜덤 선택 → 인벤토리 반영 → 결과 팝업
     /// </summary>
-    public void OpenItemPopup(ItemData.ItemType itemType)
+    public void ExecuteItemDraw(ItemData.ItemType itemType)
     {
-        Debug.Log($"[PopupManager] OpenItemPopup 호출됨 - ItemType: {itemType}");
+        if (!isInitialized) return;
+
+        var itemManager = ItemManager.Instance;
+        if (itemManager == null)
+        {
+            Debug.LogWarning("[PopupManager] ItemManager.Instance가 없습니다.");
+            return;
+        }
+
+        var candidates = itemManager.GetItemsByType(itemType);
+        if (candidates == null || candidates.Count == 0)
+        {
+            Debug.LogWarning($"[PopupManager] 뽑기 대상 아이템이 없습니다: {itemType}");
+            return;
+        }
+
+        int randomIndex = UnityEngine.Random.Range(0, candidates.Count);
+        var selected = candidates[randomIndex];
+
+        // 인벤토리 반영
+        itemManager.AddItem(selected.itemId, 1);
+
+        // DrawConfirm 닫고 결과 팝업 오픈
+        ClosePopup(PopupType.DrawConfirm);
+        OpenPopup(PopupType.DrawResult, PopupPriority.Normal, selected);
+
+        Debug.Log($"[PopupManager] ExecuteItemDraw: {itemType} → {selected.itemName}");
+    }
+
+    /// <summary>
+    /// 아이템 팝업 열기 (통합) - 정상적인 팝업 관리 시스템 사용
+    /// </summary>
+    public void OpenItemPopup(int itemTypeIndex)
+    {
+        Debug.Log($"[PopupManager] OpenItemPopup 호출됨 - ItemTypeIndex: {itemTypeIndex}");
+        
+        // ItemTypeIndex를 ItemData.ItemType으로 변환
+        ItemData.ItemType itemType = (ItemData.ItemType)itemTypeIndex;
+        Debug.Log($"[PopupManager] 변환된 ItemType: {itemType}");
+        
+        // 정상적인 팝업 관리 시스템 사용
         OpenPopup(PopupType.Item, PopupPriority.Normal, itemType);
+        Debug.Log($"[PopupManager] Item 팝업 열기 완료 (정상 관리 시스템 사용)");
     }
 
     /// <summary>

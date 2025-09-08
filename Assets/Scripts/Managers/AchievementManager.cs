@@ -73,7 +73,8 @@ namespace GGumtles.Managers
     {
         if (achievementDefinitions == null || achievementDefinitions.Count == 0)
         {
-            Debug.LogWarning("[AchievementManager] 업적 정의가 없습니다.");
+            Debug.LogWarning("[AchievementManager] 업적 정의가 없습니다. 하드코딩된 업적 데이터를 생성합니다.");
+            CreateDefaultAchievements();
             return;
         }
 
@@ -99,6 +100,53 @@ namespace GGumtles.Managers
                 Debug.LogWarning($"[AchievementManager] 업적 '{def.achievementId}'의 제목이 비어있습니다.");
             }
         }
+    }
+
+    /// <summary>
+    /// 기본 업적 데이터 생성 (Inspector 설정이 없을 때)
+    /// </summary>
+    private void CreateDefaultAchievements()
+    {
+        achievementDefinitions = new List<AchievementData>
+        {
+            CreateAchievementData("Ach_01", "첫 번째 업적", "첫 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.AcornCount, 10f),
+            CreateAchievementData("Ach_02", "두 번째 업적", "두 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.DiamondCount, 5f),
+            CreateAchievementData("Ach_03", "세 번째 업적", "세 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.WormAge, 7f),
+            CreateAchievementData("Ach_04", "네 번째 업적", "네 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.PlayTime, 30f),
+            CreateAchievementData("Ach_05", "다섯 번째 업적", "다섯 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.ItemCount, 3f),
+            CreateAchievementData("Ach_06", "여섯 번째 업적", "여섯 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.WormCount, 2f)
+        };
+        
+        Debug.Log($"[AchievementManager] 기본 업적 데이터 생성 완료: {achievementDefinitions.Count}개");
+        
+        // 테스트용: 첫 번째 업적 해금
+        if (achievementDefinitions.Count > 0)
+        {
+            UnlockAchievement("Ach_01");
+            Debug.Log("[AchievementManager] 테스트용: 첫 번째 업적 해금");
+        }
+    }
+
+    /// <summary>
+    /// AchievementData 인스턴스 생성 헬퍼 메서드
+    /// </summary>
+    private AchievementData CreateAchievementData(string id, string title, string description, 
+        AchievementData.AchievementConditionType conditionType, float targetValue)
+    {
+        var achievementData = ScriptableObject.CreateInstance<AchievementData>();
+        achievementData.achievementId = id;
+        achievementData.achievementTitle = title;
+        achievementData.achievementDescription = description;
+        achievementData.conditionType = conditionType;
+        achievementData.targetValue = targetValue;
+        achievementData.rewardType = AchievementData.RewardType.Diamond;
+        achievementData.rewardAmount = 1;
+        achievementData.achievementColor = Color.white;
+        achievementData.isUnlocked = false;
+        achievementData.achieveWormId = -1;
+        // achievementIcon은 null로 두고 UI에서 기본 아이콘 사용
+        
+        return achievementData;
     }
 
     private void BuildAchievementMaps()

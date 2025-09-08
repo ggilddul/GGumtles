@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using GGumtles.Data;
 using System.Collections.Generic;
+using System.Linq;
 using GGumtles.Managers;
 
 namespace GGumtles.UI
@@ -80,6 +81,7 @@ namespace GGumtles.UI
     {
         try
         {
+            Debug.Log($"[ItemSlotUI] Initialize 호출됨 - ItemType: {itemType}");
             currentItemType = itemType;
             
             // 기존 아이템 버튼들 제거
@@ -87,14 +89,16 @@ namespace GGumtles.UI
             
             // 해당 타입의 아이템들 가져오기
             var items = GetItemsByType(itemType);
+            Debug.Log($"[ItemSlotUI] 가져온 아이템 수: {items.Count}");
             
             // 아이템 버튼들 생성
             CreateItemButtons(items);
+            Debug.Log($"[ItemSlotUI] 생성된 ItemButton 수: {itemButtons.Count}");
             
             // 현재 착용 아이템 정보 업데이트
             UpdateEquippedItemInfo();
             
-            LogDebug($"[ItemSlotUI] 아이템 슬롯 초기화 완료: {itemType}, 아이템 수: {items.Count}");
+            Debug.Log($"[ItemSlotUI] 아이템 슬롯 초기화 완료: {itemType}, 아이템 수: {items.Count}");
         }
         catch (System.Exception ex)
         {
@@ -109,10 +113,18 @@ namespace GGumtles.UI
     {
         try
         {
-            if (ItemManager.Instance == null) return new List<ItemData>();
+            Debug.Log($"[ItemSlotUI] GetItemsByType 호출됨 - ItemType: {itemType}");
+            
+            if (ItemManager.Instance == null) 
+            {
+                Debug.LogError("[ItemSlotUI] ItemManager.Instance가 null입니다!");
+                return new List<ItemData>();
+            }
 
             // 소유한 아이템들 중 해당 타입만 필터링
             var allItems = ItemManager.Instance.GetOwnedItems();
+            Debug.Log($"[ItemSlotUI] 전체 소유 아이템 수: {allItems.Count}");
+            
             var filteredItems = new List<ItemData>();
 
             foreach (var item in allItems)
@@ -120,9 +132,11 @@ namespace GGumtles.UI
                 if (item.itemType == itemType)
                 {
                     filteredItems.Add(item);
+                    Debug.Log($"[ItemSlotUI] 필터링된 아이템: {item.itemName} (ID: {item.itemId})");
                 }
             }
 
+            Debug.Log($"[ItemSlotUI] {itemType} 타입 아이템 수: {filteredItems.Count}");
             return filteredItems;
         }
         catch (System.Exception ex)
@@ -133,7 +147,7 @@ namespace GGumtles.UI
     }
 
     /// <summary>
-    /// 아이템 버튼들 생성
+    /// 아이템 버튼들 생성 (모든 아이템 생성, 보유/미보유 상태에 따른 시각적 구분)
     /// </summary>
     private void CreateItemButtons(List<ItemData> items)
     {
@@ -145,7 +159,11 @@ namespace GGumtles.UI
                 return;
             }
 
-            foreach (var item in items)
+            // 모든 아이템 타입의 아이템들 가져오기 (보유 여부와 관계없이)
+            var allItems = GetAllItemsByType(currentItemType);
+            Debug.Log($"[ItemSlotUI] 전체 아이템 수: {allItems.Count}");
+
+            foreach (var item in allItems)
             {
                 // 프리팹 인스턴스 생성
                 GameObject buttonObj = Instantiate(itemButtonPrefab, contentTransform);
@@ -156,12 +174,20 @@ namespace GGumtles.UI
                     // 아이템 버튼 초기화
                     itemButton.Initialize(item, currentItemType);
                     
-                    // 착용 상태 확인 및 설정
-                    bool isEquipped = IsItemEquipped(item.itemId);
-                    itemButton.SetEquipped(isEquipped);
+                    // 보유 상태 확인
+                    bool isOwned = IsItemOwned(item.itemId);
                     
-                    // 클릭 이벤트 연결
-                    itemButton.OnItemClickedEvent += OnItemButtonClicked;
+                    // 착용 상태 확인
+                    bool isEquipped = IsItemEquipped(item.itemId);
+                    
+                    // 보유/미보유 상태에 따른 시각적 설정
+                    SetItemButtonVisualState(itemButton, isOwned, isEquipped);
+                    
+                    // 클릭 이벤트 연결 (보유한 아이템만)
+                    if (isOwned)
+                    {
+                        itemButton.OnItemClickedEvent += OnItemButtonClicked;
+                    }
                     
                     // 리스트에 추가
                     itemButtons.Add(itemButton);
@@ -180,6 +206,65 @@ namespace GGumtles.UI
     }
 
     /// <summary>
+    /// 특정 타입의 모든 아이템들 가져오기 (보유 여부와 관계없이)
+    /// </summary>
+    private List<ItemData> GetAllItemsByType(ItemData.ItemType itemType)
+    {
+        try
+        {
+            Debug.Log($"[ItemSlotUI] GetAllItemsByType 호출됨 - ItemType: {itemType}");
+            
+            if (ItemManager.Instance == null) 
+            {
+                Debug.LogError("[ItemSlotUI] ItemManager.Instance가 null입니다!");
+                return new List<ItemData>();
+            }
+
+            // 모든 아이템들 중 해당 타입만 필터링 (보유 여부와 관계없이)
+            var allItems = ItemManager.Instance.GetAllItems();
+            Debug.Log($"[ItemSlotUI] 전체 아이템 수: {allItems.Count}");
+            
+            var filteredItems = new List<ItemData>();
+
+            foreach (var item in allItems)
+            {
+                if (item.itemType == itemType)
+                {
+                    filteredItems.Add(item);
+                    Debug.Log($"[ItemSlotUI] 필터링된 아이템: {item.itemName} (ID: {item.itemId})");
+                }
+            }
+
+            Debug.Log($"[ItemSlotUI] 타입별 필터링 완료: {filteredItems.Count}개");
+            return filteredItems;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 가져오기 중 오류: {ex.Message}");
+            return new List<ItemData>();
+        }
+    }
+
+    /// <summary>
+    /// 아이템을 보유하고 있는지 확인
+    /// </summary>
+    private bool IsItemOwned(string itemId)
+    {
+        try
+        {
+            if (ItemManager.Instance == null) return false;
+            
+            var ownedItems = ItemManager.Instance.GetOwnedItems();
+            return ownedItems.Any(item => item.itemId == itemId);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 보유 상태 확인 중 오류: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 아이템이 착용되어 있는지 확인
     /// </summary>
     private bool IsItemEquipped(string itemId)
@@ -193,6 +278,48 @@ namespace GGumtles.UI
         {
             Debug.LogError($"[ItemSlotUI] 착용 상태 확인 중 오류: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 아이템 버튼의 시각적 상태 설정 (보유/미보유, 착용 상태)
+    /// </summary>
+    private void SetItemButtonVisualState(ItemButton itemButton, bool isOwned, bool isEquipped)
+    {
+        try
+        {
+            if (itemButton == null) return;
+
+            // 보유 상태에 따른 색상 설정
+            if (isOwned)
+            {
+                // 보유한 아이템: 정상 색상 (1f, 1f, 1f, 1f)
+                itemButton.SetButtonColor(new Color(1f, 1f, 1f, 1f));
+                itemButton.SetInteractable(true);
+                LogDebug($"[ItemSlotUI] 보유 아이템 설정: {itemButton.ItemData.itemName} - 정상 색상");
+            }
+            else
+            {
+                // 미보유 아이템: 어두운 색상 (0.8f, 0.8f, 0.8f, 1f)
+                itemButton.SetButtonColor(new Color(0.8f, 0.8f, 0.8f, 1f));
+                itemButton.SetInteractable(false);
+                LogDebug($"[ItemSlotUI] 미보유 아이템 설정: {itemButton.ItemData.itemName} - 어두운 색상");
+            }
+
+            // 착용 상태에 따른 EquippedMark 설정
+            if (isEquipped)
+            {
+                itemButton.SetEquipped(true);
+                LogDebug($"[ItemSlotUI] 착용 아이템 표시: {itemButton.ItemData.itemName}");
+            }
+            else
+            {
+                itemButton.SetEquipped(false);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 아이템 버튼 시각적 상태 설정 중 오류: {ex.Message}");
         }
     }
 

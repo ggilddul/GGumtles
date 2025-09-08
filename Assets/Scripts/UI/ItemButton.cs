@@ -260,6 +260,44 @@ namespace GGumtles.UI
     }
 
     /// <summary>
+    /// 버튼 색상 설정
+    /// </summary>
+    public void SetButtonColor(Color color)
+    {
+        try
+        {
+            if (itemImage != null)
+            {
+                itemImage.color = color;
+                LogDebug($"[ItemButton] 버튼 색상 설정: {color}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemButton] 버튼 색상 설정 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 버튼 상호작용 가능 여부 설정
+    /// </summary>
+    public void SetInteractable(bool interactable)
+    {
+        try
+        {
+            if (itemButton != null)
+            {
+                itemButton.interactable = interactable;
+                LogDebug($"[ItemButton] 버튼 상호작용 설정: {interactable}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemButton] 버튼 상호작용 설정 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 클릭 이벤트 처리
     /// </summary>
     private void OnClick()

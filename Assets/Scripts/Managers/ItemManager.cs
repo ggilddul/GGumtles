@@ -578,6 +578,15 @@ namespace GGumtles.Managers
     public List<ItemData> GetOwnedItems() => new List<ItemData>(ownedItemsList);
 
     /// <summary>
+    /// 모든 아이템 데이터 가져오기 (보유 여부와 관계없이)
+    /// </summary>
+    public List<ItemData> GetAllItems()
+    {
+        if (allItemDataDict == null) return new List<ItemData>();
+        return new List<ItemData>(allItemDataDict.Values);
+    }
+
+    /// <summary>
     /// 특정 타입의 모든 아이템 데이터 가져오기
     /// </summary>
     public List<ItemData> GetItemsByType(ItemData.ItemType itemType)

@@ -144,10 +144,21 @@ namespace GGumtles.UI
                 return;
             }
             
+            // 각 업적 정의 상세 정보 출력
             for (int i = 0; i < definitions.Count; i++)
             {
                 var definition = definitions[i];
-                LogDebug($"[AchieveTabUI] 업적 {i+1}/{definitions.Count} 생성 시작: {definition.achievementTitle}");
+                LogDebug($"[AchieveTabUI] 업적 {i+1}/{definitions.Count} 상세 정보:");
+                LogDebug($"  - ID: {definition.achievementId}");
+                LogDebug($"  - Title: {definition.achievementTitle}");
+                LogDebug($"  - Description: {definition.achievementDescription}");
+                LogDebug($"  - 해금 여부: {AchievementManager.Instance.IsUnlocked(definition.achievementId)}");
+            }
+            
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                LogDebug($"[AchieveTabUI] 업적 {i+1}/{definitions.Count} 생성 시작: {definition.achievementTitle} (ID: {definition.achievementId})");
                 CreateAchievementButton(definition);
             }
             
@@ -164,51 +175,55 @@ namespace GGumtles.UI
         {
             try
             {
-                LogDebug($"[AchieveTabUI] CreateAchievementButton 시작: {definition.achievementTitle}");
-                
-                // 프리팹 인스턴스 생성
-                LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성: {achievementButtonPrefab?.name}");
-                GameObject buttonObj = Instantiate(achievementButtonPrefab, contentParent);
-                LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성 완료: {buttonObj?.name}");
-                
-                AchievementButtonUI buttonUI = buttonObj.GetComponent<AchievementButtonUI>();
-                LogDebug($"[AchieveTabUI] AchievementButtonUI 컴포넌트 찾기: {buttonUI != null}");
-                
-                if (buttonUI == null)
-                {
-                    Debug.LogError($"[AchieveTabUI] AchievementButtonUI 컴포넌트를 찾을 수 없습니다: {definition.achievementTitle}");
-                    Destroy(buttonObj);
-                    return;
-                }
-                
-                // 해금 여부 확인
-                bool isUnlocked = AchievementManager.Instance.IsUnlocked(definition.achievementId);
-                LogDebug($"[AchieveTabUI] 해금 여부 확인: {isUnlocked}");
-                
-                // 아이콘 가져오기 (SpriteManager에서)
-                Sprite icon = null;
-                if (SpriteManager.Instance != null)
-                {
-                    icon = SpriteManager.Instance.GetAchievementSprite(definition.achievementId, isUnlocked);
-                    LogDebug($"[AchieveTabUI] 아이콘 가져오기: {icon != null}");
-                }
-                else
-                {
-                    LogDebug("[AchieveTabUI] SpriteManager.Instance가 null입니다");
-                }
-                
-                // 버튼 초기화
-                LogDebug($"[AchieveTabUI] 버튼 초기화 시작: {definition.achievementTitle}");
-                buttonUI.Initialize(definition, activeButtons.Count);
-                LogDebug($"[AchieveTabUI] 버튼 초기화 완료: {definition.achievementTitle}");
-                
-                // 색상 설정
-                SetButtonColor(buttonUI, isUnlocked);
-                LogDebug($"[AchieveTabUI] 색상 설정 완료");
-                
-                activeButtons.Add(buttonUI);
-                
-                LogDebug($"[AchieveTabUI] 업적 버튼 생성 완료: {definition.achievementTitle} (해금: {isUnlocked})");
+            LogDebug($"[AchieveTabUI] CreateAchievementButton 시작:");
+            LogDebug($"  - ID: {definition.achievementId}");
+            LogDebug($"  - Title: {definition.achievementTitle}");
+            LogDebug($"  - Description: {definition.achievementDescription}");
+            LogDebug($"  - Index: {activeButtons.Count}");
+            
+            // 프리팹 인스턴스 생성
+            LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성: {achievementButtonPrefab?.name}");
+            GameObject buttonObj = Instantiate(achievementButtonPrefab, contentParent);
+            LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성 완료: {buttonObj?.name}");
+            
+            AchievementButtonUI buttonUI = buttonObj.GetComponent<AchievementButtonUI>();
+            LogDebug($"[AchieveTabUI] AchievementButtonUI 컴포넌트 찾기: {buttonUI != null}");
+            
+            if (buttonUI == null)
+            {
+                Debug.LogError($"[AchieveTabUI] AchievementButtonUI 컴포넌트를 찾을 수 없습니다: {definition.achievementTitle}");
+                Destroy(buttonObj);
+                return;
+            }
+            
+            // 해금 여부 확인
+            bool isUnlocked = AchievementManager.Instance.IsUnlocked(definition.achievementId);
+            LogDebug($"[AchieveTabUI] 해금 여부 확인: {isUnlocked} (ID: {definition.achievementId})");
+            
+            // 아이콘 가져오기 (SpriteManager에서)
+            Sprite icon = null;
+            if (SpriteManager.Instance != null)
+            {
+                icon = SpriteManager.Instance.GetAchievementSprite(definition.achievementId, isUnlocked);
+                LogDebug($"[AchieveTabUI] 아이콘 가져오기: {icon != null} (ID: {definition.achievementId})");
+            }
+            else
+            {
+                LogDebug("[AchieveTabUI] SpriteManager.Instance가 null입니다");
+            }
+            
+            // 버튼 초기화
+            LogDebug($"[AchieveTabUI] 버튼 초기화 시작: {definition.achievementTitle} (ID: {definition.achievementId})");
+            buttonUI.Initialize(definition, activeButtons.Count);
+            LogDebug($"[AchieveTabUI] 버튼 초기화 완료: {definition.achievementTitle} (ID: {definition.achievementId})");
+            
+            // 색상 설정
+            SetButtonColor(buttonUI, isUnlocked);
+            LogDebug($"[AchieveTabUI] 색상 설정 완료: {isUnlocked}");
+            
+            activeButtons.Add(buttonUI);
+            
+            LogDebug($"[AchieveTabUI] 업적 버튼 생성 완료: {definition.achievementTitle} (ID: {definition.achievementId}, 해금: {isUnlocked})");
             }
             catch (System.Exception ex)
             {

@@ -283,9 +283,9 @@ namespace GGumtles.Managers
         return bgmOption switch
         {
             GameSaveData.AudioOption.Off => 0f,
-            GameSaveData.AudioOption.Low => 0.2f,
+            GameSaveData.AudioOption.Low => 0.25f,
             GameSaveData.AudioOption.Medium => 0.5f,
-            GameSaveData.AudioOption.High => 0.8f,
+            GameSaveData.AudioOption.High => 0.7f,
             GameSaveData.AudioOption.Max => 1f,
             _ => defaultBGMVolume
         };
@@ -298,7 +298,7 @@ namespace GGumtles.Managers
             GameSaveData.AudioOption.Off => 0f,
             GameSaveData.AudioOption.Low => 0.25f,
             GameSaveData.AudioOption.Medium => 0.5f,
-            GameSaveData.AudioOption.High => 0.75f,
+            GameSaveData.AudioOption.High => 0.7f,
             GameSaveData.AudioOption.Max => 1f,
             _ => defaultSFXVolume
         };

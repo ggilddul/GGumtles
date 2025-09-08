@@ -18,13 +18,13 @@ namespace GGumtles.UI
 
         PlaySFX,
         EquipItem,
-        ShakeTree,
         CollectAcorn,
         CollectDiamond,
-        FeedWorm,
         
         // 아이템 뽑기 관련
         OpenItemDrawPopup,
+        OpenDrawConfirmPopupDirect,
+        ExecuteItemDraw,
         CancelItemDraw,
         CancelDrawConfirm,
         ConfirmDrawResult,
@@ -46,7 +46,11 @@ namespace GGumtles.UI
         // 벌레 사망 팝업 관련
         WormDieConfirm,  // 벌레 사망 확인 - EggFound 팝업 열기
 
-        QuitGame  // 게임 종료 - MainUI로 돌아가기
+        QuitGame,  // 게임 종료 - MainUI로 돌아가기
+
+        FeedWorm,
+
+        ShakeTree
     }
 
     public class ReusableButton : MonoBehaviour
@@ -54,6 +58,10 @@ namespace GGumtles.UI
         [Header("액션 설정")]
         [SerializeField] private ButtonAction buttonAction;
         [SerializeField] private int actionParameter = -1; // 탭 인덱스, 팝업 타입 등
+        
+        // 디버그용 public 프로퍼티
+        public ButtonAction ButtonAction => buttonAction;
+        public int ActionParameter => actionParameter;
         
         // [Header("디버그 설정")] // 필드와 함께 주석 처리
         // enableDebugLogs 제거 - 사용되지 않음
@@ -243,6 +251,18 @@ namespace GGumtles.UI
                     PopupManager.Instance?.OpenItemDrawPopup(drawType);
                     break;
                     
+                case ButtonAction.OpenDrawConfirmPopupDirect:
+                    // parameter로 ItemType 전달하여 DrawConfirm 팝업 바로 열기
+                    ItemData.ItemType confirmType = (ItemData.ItemType)actionParameter;
+                    PopupManager.Instance?.OpenDrawConfirmPopupDirect(confirmType);
+                    break;
+                
+                case ButtonAction.ExecuteItemDraw:
+                    // parameter로 ItemType 전달하여 실제 뽑기 실행
+                    ItemData.ItemType execType = (ItemData.ItemType)actionParameter;
+                    PopupManager.Instance?.ExecuteItemDraw(execType);
+                    break;
+                    
                 case ButtonAction.CancelItemDraw:
                     PopupManager.Instance?.CancelItemDraw();
                     break;
@@ -257,8 +277,8 @@ namespace GGumtles.UI
                     
                 // 아이템 팝업 관련 (통합)
                 case ButtonAction.OpenItemPopup:
-                    ItemData.ItemType itemTypeParam = (ItemData.ItemType)actionParameter;
-                    PopupManager.Instance?.OpenItemPopup(itemTypeParam);
+                    // actionParameter는 이미 int이므로 그대로 전달
+                    PopupManager.Instance?.OpenItemPopup(actionParameter);
                     break;
                     
                 // 업적 팝업 관련 (통합)

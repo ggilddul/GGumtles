@@ -149,7 +149,7 @@ namespace GGumtles.UI
             
             // 세대 (있는 경우에만)
             if (generationText != null)
-                generationText.text = $"세대 {currentWormData.generation}";
+                generationText.text = $"{currentWormData.generation}세대";
         }
         catch (System.Exception ex)
         {

@@ -389,6 +389,14 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
+    /// 현재 다이아몬드 개수 반환
+    /// </summary>
+    public int GetDiamondCount()
+    {
+        return currentSaveData != null ? currentSaveData.diamondCount : 0;
+    }
+
+    /// <summary>
     /// 저장된 벌레 데이터 반환
     /// </summary>
     public List<WormData> GetWormData()

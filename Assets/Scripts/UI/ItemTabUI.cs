@@ -111,6 +111,16 @@ namespace GGumtles.UI
             RefreshAllPreviews();
             UpdateButtonsInteractable();
         }
+        
+        // 버튼 이벤트 재설정 (강제)
+        StartCoroutine(DelayedButtonSetup());
+    }
+    
+    private System.Collections.IEnumerator DelayedButtonSetup()
+    {
+        yield return new WaitForEndOfFrame();
+        SetupButtonEvents();
+        LogDebug("[ItemTabUI] 지연된 버튼 설정 완료");
     }
 
     private void OnDisable()
@@ -178,46 +188,70 @@ namespace GGumtles.UI
     {
         try
         {
-            // 모자 버튼 - ReusableButton으로 설정
+            // 모자 버튼 - 직접 OpenItemPopup(0) 할당
             if (hatButton != null)
             {
-                var hatReusableButton = hatButton.GetComponent<GGumtles.UI.ReusableButton>();
-                if (hatReusableButton == null)
+                // 기존 ReusableButton 제거
+                var existingHatButton = hatButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (existingHatButton != null)
                 {
-                    hatReusableButton = hatButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                    DestroyImmediate(existingHatButton);
                 }
-                hatReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Hat);
                 
-                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
+                // 기존 onClick 제거
                 hatButton.onClick.RemoveAllListeners();
+                
+                // 직접 OpenItemPopup(0) 할당
+                hatButton.onClick.AddListener(() => {
+                    LogDebug("[ItemTabUI] HatButton 클릭 - OpenItemPopup(0) 호출");
+                    PopupManager.Instance?.OpenItemPopup(0); // 0 = ItemData.ItemType.Hat
+                });
+                
+                LogDebug("[ItemTabUI] HatButton 직접 OpenItemPopup(0) 설정 완료");
             }
 
-            // 얼굴 버튼 - ReusableButton으로 설정
+            // 얼굴 버튼 - 직접 OpenItemPopup(1) 할당
             if (faceButton != null)
             {
-                var faceReusableButton = faceButton.GetComponent<GGumtles.UI.ReusableButton>();
-                if (faceReusableButton == null)
+                // 기존 ReusableButton 제거
+                var existingFaceButton = faceButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (existingFaceButton != null)
                 {
-                    faceReusableButton = faceButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                    DestroyImmediate(existingFaceButton);
                 }
-                faceReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Face);
                 
-                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
+                // 기존 onClick 제거
                 faceButton.onClick.RemoveAllListeners();
+                
+                // 직접 OpenItemPopup(1) 할당
+                faceButton.onClick.AddListener(() => {
+                    LogDebug("[ItemTabUI] FaceButton 클릭 - OpenItemPopup(1) 호출");
+                    PopupManager.Instance?.OpenItemPopup(1); // 1 = ItemData.ItemType.Face
+                });
+                
+                LogDebug("[ItemTabUI] FaceButton 직접 OpenItemPopup(1) 설정 완료");
             }
 
-            // 의상 버튼 - ReusableButton으로 설정
+            // 의상 버튼 - 직접 OpenItemPopup(2) 할당
             if (costumeButton != null)
             {
-                var costumeReusableButton = costumeButton.GetComponent<GGumtles.UI.ReusableButton>();
-                if (costumeReusableButton == null)
+                // 기존 ReusableButton 제거
+                var existingCostumeButton = costumeButton.GetComponent<GGumtles.UI.ReusableButton>();
+                if (existingCostumeButton != null)
                 {
-                    costumeReusableButton = costumeButton.gameObject.AddComponent<GGumtles.UI.ReusableButton>();
+                    DestroyImmediate(existingCostumeButton);
                 }
-                costumeReusableButton.SetAction(GGumtles.UI.ButtonAction.OpenItemPopup, (int)ItemData.ItemType.Costume);
                 
-                // 기존 onClick 제거 (ReusableButton이 처리하므로 중복 방지)
+                // 기존 onClick 제거
                 costumeButton.onClick.RemoveAllListeners();
+                
+                // 직접 OpenItemPopup(2) 할당
+                costumeButton.onClick.AddListener(() => {
+                    LogDebug("[ItemTabUI] CostumeButton 클릭 - OpenItemPopup(2) 호출");
+                    PopupManager.Instance?.OpenItemPopup(2); // 2 = ItemData.ItemType.Costume
+                });
+                
+                LogDebug("[ItemTabUI] CostumeButton 직접 OpenItemPopup(2) 설정 완료");
             }
 
             // 아이템 뽑기 버튼 (선택 사항: 연결만, 동작은 추후)

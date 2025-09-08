@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 4448776783904200320}
   - component: {fileID: 1006923311155272800}
   - component: {fileID: 8198319678130764193}
-  - component: {fileID: 7392833457086863833}
   m_Layer: 5
   m_Name: DeclineButton
   m_TagString: Untagged
@@ -139,20 +138,6 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 1}
   m_EffectDistance: {x: 5, y: -5}
   m_UseGraphicAlpha: 1
---- !u!114 &7392833457086863833
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2864963099369797077}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  buttonAction: 12
-  actionParameter: -1
 --- !u!1 &4377339596662498973
 GameObject:
   m_ObjectHideFlags: 0
@@ -254,6 +239,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5333425789906924187}
+  - component: {fileID: 5136733492069861424}
   m_Layer: 5
   m_Name: DrawConfirm
   m_TagString: Untagged
@@ -285,6 +271,23 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 960, y: 800}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &5136733492069861424
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4399098678713412420}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b56a79158ee4d02960e4f148686ec7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemDrawTypeText1: {fileID: 6917398723363837300}
+  itemDrawTypeText2: {fileID: 3437669523703568779}
+  confirmButton: {fileID: 8298069018092836331}
+  declineButton: {fileID: 1006923311155272800}
+  enableDebugLogs: 0
 --- !u!1 &4755564425359973183
 GameObject:
   m_ObjectHideFlags: 0
@@ -509,7 +512,6 @@ GameObject:
   - component: {fileID: 4217218456740416613}
   - component: {fileID: 8298069018092836331}
   - component: {fileID: 2242553156970973524}
-  - component: {fileID: 211247084734709519}
   m_Layer: 5
   m_Name: ConfirmButton
   m_TagString: Untagged
@@ -635,20 +637,6 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 1}
   m_EffectDistance: {x: 5, y: -5}
   m_UseGraphicAlpha: 1
---- !u!114 &211247084734709519
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5337091451722974634}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  buttonAction: 13
-  actionParameter: -1
 --- !u!1 &5607462669757803280
 GameObject:
   m_ObjectHideFlags: 0

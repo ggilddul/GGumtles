@@ -12,9 +12,9 @@ namespace GGumtles.UI
     public class DrawResultPopupUI : MonoBehaviour
     {
         [Header("UI 요소")]
-        [SerializeField] private TextMeshProUGUI resultText;
-        [SerializeField] private Image itemIcon;
-        [SerializeField] private Button confirmButton;
+        [SerializeField] private Image itemPanelImage;        // 뽑기 결과에 해당하는 아이템 이미지
+        [SerializeField] private TextMeshProUGUI popupDescText; // 뽑기 결과 아이템 설명
+        [SerializeField] private Button confirmDrawResult;    // 확인 버튼
         
         [Header("설정")]
         [SerializeField] private bool enableDebugLogs = false;
@@ -33,17 +33,17 @@ namespace GGumtles.UI
         {
             resultItem = itemData;
             
-            // 텍스트 설정
-            if (resultText != null)
+            // 이미지 설정 (리소스 로딩 또는 ItemData 내 스프라이트 사용이 있다면 교체)
+            if (itemPanelImage != null)
             {
-                resultText.text = $"{itemData.itemName}을(를) 획득했습니다!";
+                itemPanelImage.sprite = null;
+                itemPanelImage.gameObject.SetActive(true);
             }
-            
-            // 아이콘 설정 (단순화)
-            if (itemIcon != null)
+
+            // 설명 패널 텍스트 설정
+            if (popupDescText != null)
             {
-                itemIcon.sprite = null; // 단순화: 기본 스프라이트 제거
-                itemIcon.gameObject.SetActive(true);
+                popupDescText.text = GetItemDescription(itemData);
             }
             
             if (enableDebugLogs)
@@ -56,9 +56,9 @@ namespace GGumtles.UI
         private void SetupButtons()
         {
             // 확인 버튼
-            if (confirmButton != null)
+            if (confirmDrawResult != null)
             {
-                confirmButton.onClick.AddListener(OnConfirmButtonClicked);
+                confirmDrawResult.onClick.AddListener(OnConfirmButtonClicked);
             }
         }
         
@@ -77,8 +77,15 @@ namespace GGumtles.UI
         private void OnDestroy()
         {
             // 이벤트 리스너 제거
-            if (confirmButton != null)
-                confirmButton.onClick.RemoveAllListeners();
+            if (confirmDrawResult != null)
+                confirmDrawResult.onClick.RemoveAllListeners();
+        }
+
+        private string GetItemDescription(ItemData item)
+        {
+            // ItemData에 설명 필드가 있으면 사용, 없으면 이름 기반 임시 설명
+            if (item == null) return "";
+            return string.IsNullOrEmpty(item.itemDescription) ? $"{item.itemName}을(를) 획득했습니다." : item.itemDescription;
         }
     }
 }
