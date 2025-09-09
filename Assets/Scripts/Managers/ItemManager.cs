@@ -159,10 +159,19 @@ namespace GGumtles.Managers
     private void LoadEquippedItems()
     {
         // 저장된 장착 아이템 로드 (GameSaveManager에서)
-        // 착용 아이템은 기본값으로 초기화 (저장 데이터에서 로드하지 않음)
+        // 착용 아이템은 기본값으로 초기화
         equippedItems.hatId = "";
         equippedItems.faceId = "";
         equippedItems.costumeId = "";
+        
+        // 저장된 착용 아이템 정보가 있으면 로드
+        if (GameSaveManager.Instance?.currentSaveData != null)
+        {
+            var saveData = GameSaveManager.Instance.currentSaveData;
+            equippedItems.hatId = saveData.equippedHatId ?? "";
+            equippedItems.faceId = saveData.equippedFaceId ?? "";
+            equippedItems.costumeId = saveData.equippedCostumeId ?? "";
+        }
     }
 
     /// <summary>
@@ -239,6 +248,12 @@ namespace GGumtles.Managers
 
         // 이벤트 발생
         OnItemAddedEvent?.Invoke(itemId, itemData, quantity);
+
+        // 아이템 개수 업적 체크
+        if (AchievementManager.Instance != null)
+        {
+            AchievementManager.Instance.CheckAchievementByCondition("item_count", TotalOwnedItems);
+        }
 
         // 알림 표시
         if (showNotification && this.showItemNotifications)
@@ -624,7 +639,12 @@ namespace GGumtles.Managers
 
     public bool IsItemEquipped(string itemId)
     {
-        return ownedItemsDict.TryGetValue(itemId, out var info) && info.isEquipped;
+        if (string.IsNullOrEmpty(itemId)) return false;
+        
+        // EquippedItems에서 직접 확인
+        return equippedItems.hatId == itemId || 
+               equippedItems.faceId == itemId || 
+               equippedItems.costumeId == itemId;
     }
 
     public bool HasItem(string itemId)

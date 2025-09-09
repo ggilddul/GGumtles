@@ -390,6 +390,9 @@ namespace GGumtles.UI
 
             // 아이템 교체 처리
             HandleItemEquip(itemButton);
+            
+            // 선택된 아이템 설명 업데이트
+            UpdateSelectedItemInfo(itemButton.ItemData);
 
             LogDebug($"[ItemSlotUI] 아이템 선택: {itemButton.ItemData.itemName}");
         }
@@ -502,11 +505,51 @@ namespace GGumtles.UI
     }
 
     /// <summary>
+    /// 선택된 아이템 정보 업데이트
+    /// </summary>
+    private void UpdateSelectedItemInfo(ItemData selectedItem)
+    {
+        try
+        {
+            if (itemDescObject == null || selectedItem == null) return;
+
+            // 설명 오브젝트 활성화
+            itemDescObject.SetActive(true);
+
+            // 이름 텍스트 설정
+            if (itemDescNameText != null)
+            {
+                itemDescNameText.text = selectedItem.itemName;
+            }
+
+            // 설명 텍스트 설정
+            if (itemDescText != null)
+            {
+                itemDescText.text = GetItemDescription(selectedItem);
+            }
+
+            LogDebug($"[ItemSlotUI] 선택된 아이템 정보 업데이트: {selectedItem.itemName}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ItemSlotUI] 선택된 아이템 정보 업데이트 중 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 아이템 설명 가져오기
     /// </summary>
     private string GetItemDescription(ItemData item)
     {
-        // 간단한 설명 생성 (실제로는 ItemData에 description 필드가 있을 수 있음)
+        if (item == null) return "";
+        
+        // ItemData의 실제 description 사용
+        if (!string.IsNullOrEmpty(item.itemDescription))
+        {
+            return item.itemDescription;
+        }
+        
+        // description이 비어있으면 기본 설명 생성
         return $"{item.itemName}의 상세한 설명입니다. 이 아이템은 {item.itemType} 타입입니다.";
     }
 

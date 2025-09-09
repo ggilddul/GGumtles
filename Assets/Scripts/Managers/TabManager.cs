@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using GGumtles.Managers;
+using GGumtles.UI;
 
 namespace GGumtles.Managers
 {
@@ -199,6 +200,12 @@ namespace GGumtles.Managers
         int previousIndex = currentTabIndex;
         TabType previousType = currentTabInfo?.type ?? TabType.Play;
 
+        // 홈탭에서 다른 탭으로 이동 시 쿨다운 상태 저장
+        if (previousType == TabType.Home)
+        {
+            SaveHomeTabCooldownState();
+        }
+
         // 모든 탭 비활성화
         DeactivateAllTabs();
 
@@ -206,6 +213,12 @@ namespace GGumtles.Managers
         currentTabIndex = tabIndex;
         currentTabInfo = tabInfoList[tabIndex];
         ActivateTab(currentTabInfo);
+
+        // 홈탭으로 복귀 시 쿨다운 상태 복원
+        if (currentTabInfo.type == TabType.Home)
+        {
+            RestoreHomeTabCooldownState();
+        }
 
         // 이벤트 발생
         OnTabChangedEvent?.Invoke(previousIndex, currentTabIndex, previousType, currentTabInfo.type);
@@ -293,6 +306,7 @@ namespace GGumtles.Managers
     {
         if (tabInfo == null) return;
 
+        // 홈탭 예외 제거: 모든 탭은 정상적으로 비활성화됨
         tabInfo.isActive = false;
 
         // 패널 비활성화
@@ -418,6 +432,34 @@ namespace GGumtles.Managers
         info.AppendLine($"탭 개수: {TabCount}");
 
         return info.ToString();
+    }
+
+    /// <summary>
+    /// 홈탭 쿨다운 상태 저장
+    /// </summary>
+    private void SaveHomeTabCooldownState()
+    {
+        // 홈탭에서 AcornFeedButtonUI 찾기
+        var acornFeedButtonUI = FindFirstObjectByType<AcornFeedButtonUI>();
+        if (acornFeedButtonUI != null)
+        {
+            acornFeedButtonUI.SaveCooldownState();
+            Debug.Log("[TabManager] 홈탭 쿨다운 상태 저장");
+        }
+    }
+
+    /// <summary>
+    /// 홈탭 쿨다운 상태 복원
+    /// </summary>
+    private void RestoreHomeTabCooldownState()
+    {
+        // 홈탭에서 AcornFeedButtonUI 찾기
+        var acornFeedButtonUI = FindFirstObjectByType<AcornFeedButtonUI>();
+        if (acornFeedButtonUI != null)
+        {
+            acornFeedButtonUI.RestoreCooldownState();
+            Debug.Log("[TabManager] 홈탭 쿨다운 상태 복원");
+        }
     }
 
     private void OnDestroy()

@@ -31,6 +31,8 @@ namespace GGumtles.Data
     public class WormStatistics
     {
         public int totalEatCount = 0;        // 총 먹이 횟수
+        public int totalDiamondCount = 0;    // 총 다이아몬드 획득 횟수
+        public int totalShakeCount = 0;      // 총 나무 흔든 횟수
         public int totalPlayCount = 0;       // 총 놀이 횟수
         public int achievementCount = 0;     // 총 업적 수
     }

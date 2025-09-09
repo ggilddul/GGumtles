@@ -31,6 +31,43 @@ namespace GGumtles.UI
     public bool IsUnlocked => isUnlocked;
 
     /// <summary>
+    /// 강제 텍스트 업데이트 (개선된 프리팹 구조에 맞게 수정)
+    /// </summary>
+    public void ForceUpdateText()
+    {
+        if (achievementData == null) return;
+
+        LogDebug($"[AchievementButtonUI] ForceUpdateText 호출 - 제목: {achievementData.achievementTitle}");
+        
+        // AchNameText 하위 요소에서 직접 찾기
+        if (titleText != null)
+        {
+            titleText.text = achievementData.achievementTitle;
+            LogDebug($"[AchievementButtonUI] titleText에 강제 설정: '{titleText.text}'");
+        }
+        else
+        {
+            // titleText가 null인 경우 다시 찾기 시도
+            Transform titleTransform = transform.Find("AchNameText");
+            if (titleTransform != null)
+            {
+                titleText = titleTransform.GetComponent<TMP_Text>();
+                if (titleText != null)
+                {
+                    titleText.text = achievementData.achievementTitle;
+                    LogDebug($"[AchievementButtonUI] AchNameText에서 찾아서 설정: '{titleText.text}'");
+                }
+            }
+            else
+            {
+                Debug.LogError($"[AchievementButtonUI] AchNameText를 찾을 수 없습니다!");
+            }
+        }
+        
+        LogDebug($"[AchievementButtonUI] ForceUpdateText 완료");
+    }
+
+    /// <summary>
     /// 업적 버튼 초기화
     /// </summary>
     public void Initialize(AchievementData definition, int index)
@@ -72,6 +109,11 @@ namespace GGumtles.UI
             UpdateUI();
             LogDebug($"[AchievementButtonUI] UI 업데이트 완료");
             
+            // 강제 텍스트 업데이트 (안전장치)
+            LogDebug($"[AchievementButtonUI] 강제 텍스트 업데이트 시작");
+            ForceUpdateText();
+            LogDebug($"[AchievementButtonUI] 강제 텍스트 업데이트 완료");
+            
             // 버튼 이벤트 설정
             LogDebug($"[AchievementButtonUI] 버튼 이벤트 설정 시작");
             SetupButtonEvents();
@@ -86,7 +128,7 @@ namespace GGumtles.UI
     }
 
     /// <summary>
-    /// 컴포넌트 자동 찾기
+    /// 컴포넌트 자동 찾기 (개선된 프리팹 구조에 맞게 수정)
     /// </summary>
     private void InitializeComponents()
     {
@@ -94,85 +136,59 @@ namespace GGumtles.UI
         
         try
         {
-            // titleText 자동 찾기
+            LogDebug($"[AchievementButtonUI] 컴포넌트 초기화 시작 - GameObject: {gameObject.name}");
+            
+            // 1. titleText 찾기 (AchNameText 하위 요소)
             if (titleText == null)
             {
-                LogDebug($"[AchievementButtonUI] titleText 자동 찾기 시작 - GameObject: {gameObject.name}");
-                
-                // 1. GetComponentInChildren로 찾기
-                titleText = GetComponentInChildren<TMP_Text>();
-                LogDebug($"[AchievementButtonUI] GetComponentInChildren 결과: {titleText != null}");
-                
-                // 2. 이름으로 찾기
-                if (titleText == null)
+                Transform titleTransform = transform.Find("AchNameText");
+                if (titleTransform != null)
                 {
-                    LogDebug($"[AchievementButtonUI] 이름으로 찾기 시도...");
-                    string[] possibleNames = { "TitleText", "NameText", "AchievementNameText", "AchNameText", "Text" };
-                    foreach (string name in possibleNames)
-                    {
-                        Transform titleTransform = transform.Find(name);
-                        LogDebug($"[AchievementButtonUI] '{name}' Transform 찾기: {titleTransform != null}");
-                        if (titleTransform != null)
-                        {
-                            titleText = titleTransform.GetComponent<TMP_Text>();
-                            LogDebug($"[AchievementButtonUI] '{name}' TMP_Text 찾기: {titleText != null}");
-                            if (titleText != null) break;
-                        }
-                    }
+                    titleText = titleTransform.GetComponent<TMP_Text>();
+                    LogDebug($"[AchievementButtonUI] AchNameText 찾기: {titleText != null}");
                 }
-                
-                // 3. 모든 자식에서 TMP_Text 찾기
-                if (titleText == null)
+                else
                 {
-                    LogDebug($"[AchievementButtonUI] 모든 자식에서 TMP_Text 찾기 시도...");
-                    TMP_Text[] allTexts = GetComponentsInChildren<TMP_Text>();
-                    LogDebug($"[AchievementButtonUI] 발견된 TMP_Text 개수: {allTexts.Length}");
-                    if (allTexts.Length > 0)
-                    {
-                        titleText = allTexts[0]; // 첫 번째 TMP_Text 사용
-                        LogDebug($"[AchievementButtonUI] 첫 번째 TMP_Text 사용: {titleText.gameObject.name}");
-                    }
-                }
-                
-                LogDebug($"[AchievementButtonUI] titleText 찾기 최종 결과: {titleText != null}");
-                if (titleText != null)
-                {
-                    LogDebug($"[AchievementButtonUI] titleText GameObject: {titleText.gameObject.name}");
+                    LogDebug($"[AchievementButtonUI] AchNameText Transform을 찾을 수 없음");
                 }
             }
             
-            // iconImage 자동 찾기
+            // 2. iconImage 찾기 (IconImage 하위 요소)
             if (iconImage == null)
             {
-                iconImage = GetComponentInChildren<Image>();
-                if (iconImage == null)
+                Transform iconTransform = transform.Find("IconImage");
+                if (iconTransform != null)
                 {
-                    // "IconImage" 또는 "Icon" 이름으로 찾기
-                    Transform iconTransform = transform.Find("IconImage");
-                    if (iconTransform == null) iconTransform = transform.Find("Icon");
-                    if (iconTransform != null)
-                    {
-                        iconImage = iconTransform.GetComponent<Image>();
-                    }
+                    iconImage = iconTransform.GetComponent<Image>();
+                    LogDebug($"[AchievementButtonUI] IconImage 찾기: {iconImage != null}");
+                }
+                else
+                {
+                    LogDebug($"[AchievementButtonUI] IconImage Transform을 찾을 수 없음");
                 }
             }
             
-            // button 자동 찾기
+            // 3. button 찾기 (Button 하위 요소)
             if (button == null)
             {
-                button = GetComponent<Button>();
-                if (button == null)
+                Transform buttonTransform = transform.Find("Button");
+                if (buttonTransform != null)
                 {
-                    button = gameObject.AddComponent<Button>();
+                    button = buttonTransform.GetComponent<Button>();
+                    LogDebug($"[AchievementButtonUI] Button 찾기: {button != null}");
+                }
+                else
+                {
+                    LogDebug($"[AchievementButtonUI] Button Transform을 찾을 수 없음");
                 }
             }
             
             componentsInitialized = true;
-            LogDebug($"[AchievementButtonUI] 컴포넌트 자동 찾기 완료 - titleText: {titleText != null}, iconImage: {iconImage != null}, button: {button != null}");
+            LogDebug($"[AchievementButtonUI] 컴포넌트 초기화 완료 - titleText: {titleText != null}, iconImage: {iconImage != null}, button: {button != null}");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[AchievementButtonUI] 컴포넌트 자동 찾기 중 오류: {ex.Message}");
+            Debug.LogError($"[AchievementButtonUI] 컴포넌트 초기화 중 오류: {ex.Message}");
         }
     }
 
@@ -191,7 +207,7 @@ namespace GGumtles.UI
 
         LogDebug($"[AchievementButtonUI] achievementData 확인: {achievementData.achievementTitle}");
 
-        // 제목 텍스트
+        // 제목 텍스트 설정
         LogDebug($"[AchievementButtonUI] titleText 확인: {titleText != null}");
         if (titleText != null)
         {
@@ -203,26 +219,7 @@ namespace GGumtles.UI
         }
         else
         {
-            Debug.LogError($"[AchievementButtonUI] titleText가 null입니다! 컴포넌트 찾기 재시도...");
-            
-            // titleText 재찾기 시도
-            titleText = GetComponentInChildren<TMP_Text>();
-            if (titleText != null)
-            {
-                LogDebug($"[AchievementButtonUI] titleText 재찾기 성공: {titleText.gameObject.name}");
-                titleText.text = achievementData.achievementTitle;
-                LogDebug($"[AchievementButtonUI] 제목 텍스트 재설정 완료: {achievementData.achievementTitle}");
-            }
-            else
-            {
-                Debug.LogError($"[AchievementButtonUI] titleText를 찾을 수 없습니다! 모든 자식 오브젝트 확인:");
-                TMP_Text[] allTexts = GetComponentsInChildren<TMP_Text>();
-                Debug.LogError($"[AchievementButtonUI] 발견된 TMP_Text 개수: {allTexts.Length}");
-                for (int i = 0; i < allTexts.Length; i++)
-                {
-                    Debug.LogError($"[AchievementButtonUI] TMP_Text[{i}]: {allTexts[i].gameObject.name}");
-                }
-            }
+            Debug.LogError($"[AchievementButtonUI] titleText가 null입니다! AchNameText 하위 요소를 확인하세요.");
         }
 
         // 아이콘 이미지

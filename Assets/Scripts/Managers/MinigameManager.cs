@@ -1,5 +1,6 @@
 using UnityEngine;
 using GGumtles.Managers;
+using GGumtles.UI;
 
 namespace GGumtles.Managers
 {
@@ -81,6 +82,8 @@ namespace GGumtles.Managers
         
         Debug.Log($"[MinigameManager] 게임 시작 - GameType: {gameType}");
         
+        WormManager.Instance.CurrentWorm.statistics.totalPlayCount++;
+        
         // MainUI 비활성화
         if (mainUI != null)
         {
@@ -99,7 +102,9 @@ namespace GGumtles.Managers
         if (TopBarManager.Instance != null)
         {
             TopBarManager.Instance.SetTopBarType(TopBarManager.TopBarType.GameState);
-            Debug.Log("[MinigameManager] TopBar를 GameState로 변경");
+            // 게임 타입에 맞는 UI 설정
+            TopBarManager.Instance.SetGameStateUI(gameType);
+            Debug.Log("[MinigameManager] TopBar를 GameState로 변경 및 UI 설정 완료");
         }
         
         // BottomBar를 ADBar로 변경
@@ -123,12 +128,15 @@ namespace GGumtles.Managers
         // 현재 활성화된 게임 패널 제거
         DestroyCurrentGamePanel();
         
-        // 게임 저장
-        if (GameManager.Instance != null)
+        // 게임 저장 (GameSaveManager에서 자동 저장 처리)
+        if (GameSaveManager.Instance != null)
         {
-            GameManager.Instance.SaveGameData();
-            Debug.Log("[MinigameManager] 게임 종료 시 자동 저장 완료");
+            GameSaveManager.Instance.SaveGame();
+            Debug.Log("[MinigameManager] 게임 종료 시 강제 저장 완료");
         }
+
+        // 홈탭 쿨다운 상태 초기화 (미니게임 종료 시)
+        ResetHomeTabCooldownState();
         
         // GameUI 비활성화
         if (gameUI != null)
@@ -250,6 +258,20 @@ namespace GGumtles.Managers
         }
         
         return -1;
+    }
+
+    /// <summary>
+    /// 홈탭 쿨다운 상태 초기화 (미니게임 종료 시)
+    /// </summary>
+    private void ResetHomeTabCooldownState()
+    {
+        // 홈탭에서 AcornFeedButtonUI 찾기
+        var acornFeedButtonUI = FindFirstObjectByType<AcornFeedButtonUI>();
+        if (acornFeedButtonUI != null)
+        {
+            acornFeedButtonUI.ResetCooldownState();
+            Debug.Log("[MinigameManager] 홈탭 쿨다운 상태 초기화");
+        }
     }
     }
 }

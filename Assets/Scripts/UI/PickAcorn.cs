@@ -67,7 +67,7 @@ namespace GGumtles.UI
                 // 도토리 획득
                 if (GameManager.Instance != null)
                 {
-                    GameManager.Instance.acornCount++;
+                    GameManager.Instance.PickAcorn();
                 }
 
                 // 상태 변경

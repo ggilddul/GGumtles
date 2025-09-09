@@ -56,6 +56,7 @@ namespace GGumtles.Managers
         Snare,
         ItemDrop,
         FeedWorm,
+        EatingSound,
         Error
     }
 
@@ -664,21 +665,8 @@ namespace GGumtles.Managers
         return GameSaveData.AudioOption.High;
     }
 
-    private void OnApplicationPause(bool pauseStatus)
-    {
-        if (pauseStatus)
-        {
-            SaveAudioSettings();
-        }
-    }
-
-    private void OnApplicationFocus(bool hasFocus)
-    {
-        if (!hasFocus)
-        {
-            SaveAudioSettings();
-        }
-    }
+    // GameSaveManager에서 자동 저장을 처리하므로 중복 제거
+    // OnApplicationPause, OnApplicationFocus는 GameSaveManager에서 처리
 
     private void OnDestroy()
     {

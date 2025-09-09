@@ -287,6 +287,7 @@ MonoBehaviour:
   itemDrawTypeText2: {fileID: 3437669523703568779}
   confirmButton: {fileID: 8298069018092836331}
   declineButton: {fileID: 1006923311155272800}
+  diamondToast: {fileID: 4735668915042021540, guid: 592baf6c8fd58448e923a42bcd9e49b4, type: 3}
   enableDebugLogs: 0
 --- !u!1 &4755564425359973183
 GameObject:

@@ -192,6 +192,42 @@ namespace GGumtles.Managers
         if (ItemManager.Instance != null)
         {
             ItemManager.Instance.Initialize();
+            
+            // 저장된 아이템 데이터로 초기화
+            var savedItemIds = GameSaveManager.Instance?.GetOwnedItemIds() ?? new List<string>();
+            
+            // 저장된 아이템이 없으면 초기 아이템 추가
+            if (savedItemIds.Count == 0)
+            {
+                ItemManager.Instance.AddItem("100", 1, false);
+                ItemManager.Instance.AddItem("200", 1, false);
+                ItemManager.Instance.AddItem("300", 1, false);
+                
+                // 초기 아이템 착용
+                ItemManager.Instance.EquipItem("100"); // Hat
+                ItemManager.Instance.EquipItem("200"); // Face  
+                ItemManager.Instance.EquipItem("300"); // Costume
+                
+                Debug.Log("[LoadingManager] 초기 아이템 추가 및 착용 완료");
+            }
+            else
+            {
+                ItemManager.Instance.Initialize(savedItemIds);
+                
+                // 저장된 착용 아이템 정보 로드
+                var saveData = GameSaveManager.Instance?.currentSaveData;
+                if (saveData != null)
+                {
+                    if (!string.IsNullOrEmpty(saveData.equippedHatId))
+                        ItemManager.Instance.EquipItem(saveData.equippedHatId);
+                    if (!string.IsNullOrEmpty(saveData.equippedFaceId))
+                        ItemManager.Instance.EquipItem(saveData.equippedFaceId);
+                    if (!string.IsNullOrEmpty(saveData.equippedCostumeId))
+                        ItemManager.Instance.EquipItem(saveData.equippedCostumeId);
+                }
+            }
+            
+            Debug.Log($"[LoadingManager] ItemManager 초기화 - 아이템: {savedItemIds.Count}개");
         }
 
         // AchievementManager 초기화
@@ -226,6 +262,12 @@ namespace GGumtles.Managers
             TopBarManager.Instance.Initialize();
         }
 
+        // 모든 매니저 초기화 완료 후 게임 데이터 저장
+        if (GameSaveManager.Instance != null)
+        {
+            GameSaveManager.Instance.SaveGame();
+            Debug.Log("[LoadingManager] 모든 매니저 초기화 완료 - 게임 데이터 저장");
+        }
     }
     
     /// <summary>

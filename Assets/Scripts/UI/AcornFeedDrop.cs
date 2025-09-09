@@ -1,5 +1,6 @@
 using UnityEngine;
 using GGumtles.Managers;
+using System;
 
 namespace GGumtles.UI
 {
@@ -32,12 +33,18 @@ namespace GGumtles.UI
         private Vector3 velocity; // 초기 0
         private int bounceCount;
         private bool landed;
+        private bool isDetectable = false; // Worm이 인식 가능한 상태인지
+        
+        // 이벤트: 도토리가 땅에 착지했을 때 발생
+        public static event Action<Vector3> OnAcornLanded;
+        // 이벤트: 도토리가 인식 가능해졌을 때 발생 (Bounce 완료 후)
+        public static event Action<AcornFeedDrop> OnAcornDetectable;
 
         public void Initialize(Vector3 startPosition)
         {
             transform.position = startPosition;
             startPos = startPosition;
-            fallDuration = Random.Range(minFallTime, maxFallTime);
+            fallDuration = UnityEngine.Random.Range(minFallTime, maxFallTime);
             // 낙하 시간에 대응하는 낙하 거리 유도: s = 1/2 * g * t^2
             float fallDistance = 0.5f * gravity * fallDuration * fallDuration;
             targetY = startPosition.y - fallDistance;
@@ -45,6 +52,7 @@ namespace GGumtles.UI
             velocity = Vector3.zero;
             bounceCount = 0;
             landed = false;
+            isDetectable = false;
         }
 
         private void Update()
@@ -86,8 +94,41 @@ namespace GGumtles.UI
                 velocity = Vector3.zero;
                 if (enableSound) AudioManager.Instance?.PlaySFX(AudioManager.SFXType.ItemDrop);
                 if (landParticle != null) Instantiate(landParticle, transform.position, Quaternion.identity);
+                
+                // 도토리가 땅에 착지했음을 알림
+                OnAcornLanded?.Invoke(transform.position);
+                
+                // Bounce가 완료되면 인식 가능 상태로 변경
+                SetDetectable(true);
             }
         }
+
+        /// <summary>
+        /// Worm이 인식 가능한 상태로 설정
+        /// </summary>
+        private void SetDetectable(bool detectable)
+        {
+            if (isDetectable != detectable)
+            {
+                isDetectable = detectable;
+                if (detectable)
+                {
+                    // 인식 가능해졌음을 알림
+                    OnAcornDetectable?.Invoke(this);
+                    Debug.Log($"[AcornFeedDrop] 도토리가 인식 가능해짐 - 위치: {transform.position}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Worm이 인식 가능한 상태인지 확인
+        /// </summary>
+        public bool IsDetectable => isDetectable;
+
+        /// <summary>
+        /// 도토리가 착지했는지 확인
+        /// </summary>
+        public bool IsLanded => landed;
     }
 }
 

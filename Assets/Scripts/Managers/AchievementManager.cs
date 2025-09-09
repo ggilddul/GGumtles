@@ -15,7 +15,6 @@ namespace GGumtles.Managers
     [Header("업적 설정")]
     [SerializeField] private List<AchievementData> achievementDefinitions;
     
-    private Dictionary<string, bool> achievementStates = new(); // 단순화: 해금 여부만 저장
     private Dictionary<string, AchievementData> achievementDefinitionsMap = new();
     private bool isInitialized = false;
 
@@ -56,12 +55,17 @@ namespace GGumtles.Managers
     {
         try
         {
-            ValidateAchievementDefinitions();
+            LoadAchievementAssets();
             BuildAchievementMaps();
-            InitializeDefaultStates();
             isInitialized = true;
             
             Debug.Log($"[AchievementManager] 업적 시스템 초기화 완료 - 총 {Count}개 업적");
+            
+            // 해금 수 기반 메달 카운트 UI 동기화
+            if (TopBarManager.Instance != null)
+            {
+                TopBarManager.Instance.UpdateMedalCount(GetUnlockedCount());
+            }
         }
         catch (Exception ex)
         {
@@ -69,12 +73,33 @@ namespace GGumtles.Managers
         }
     }
 
+    /// <summary>
+    /// Resources 폴더에서 AchievementData 에셋들을 로드
+    /// </summary>
+    private void LoadAchievementAssets()
+    {
+        // Resources/AchievementData 폴더에서 모든 AchievementData 에셋 로드
+        AchievementData[] loadedAchievements = Resources.LoadAll<AchievementData>("AchievementData");
+        
+        if (loadedAchievements != null && loadedAchievements.Length > 0)
+        {
+            achievementDefinitions = new List<AchievementData>(loadedAchievements);
+            Debug.Log($"[AchievementManager] Resources에서 {loadedAchievements.Length}개 업적 에셋 로드 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[AchievementManager] Resources/AchievementData 폴더에서 업적 에셋을 찾을 수 없습니다.");
+            achievementDefinitions = new List<AchievementData>();
+        }
+        
+        ValidateAchievementDefinitions();
+    }
+
     private void ValidateAchievementDefinitions()
     {
         if (achievementDefinitions == null || achievementDefinitions.Count == 0)
         {
-            Debug.LogWarning("[AchievementManager] 업적 정의가 없습니다. 하드코딩된 업적 데이터를 생성합니다.");
-            CreateDefaultAchievements();
+            Debug.LogWarning("[AchievementManager] 업적 정의가 없습니다.");
             return;
         }
 
@@ -102,52 +127,6 @@ namespace GGumtles.Managers
         }
     }
 
-    /// <summary>
-    /// 기본 업적 데이터 생성 (Inspector 설정이 없을 때)
-    /// </summary>
-    private void CreateDefaultAchievements()
-    {
-        achievementDefinitions = new List<AchievementData>
-        {
-            CreateAchievementData("Ach_01", "첫 번째 업적", "첫 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.AcornCount, 10f),
-            CreateAchievementData("Ach_02", "두 번째 업적", "두 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.DiamondCount, 5f),
-            CreateAchievementData("Ach_03", "세 번째 업적", "세 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.WormAge, 7f),
-            CreateAchievementData("Ach_04", "네 번째 업적", "네 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.PlayTime, 30f),
-            CreateAchievementData("Ach_05", "다섯 번째 업적", "다섯 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.ItemCount, 3f),
-            CreateAchievementData("Ach_06", "여섯 번째 업적", "여섯 번째 업적을 달성하세요!", AchievementData.AchievementConditionType.WormCount, 2f)
-        };
-        
-        Debug.Log($"[AchievementManager] 기본 업적 데이터 생성 완료: {achievementDefinitions.Count}개");
-        
-        // 테스트용: 첫 번째 업적 해금
-        if (achievementDefinitions.Count > 0)
-        {
-            UnlockAchievement("Ach_01");
-            Debug.Log("[AchievementManager] 테스트용: 첫 번째 업적 해금");
-        }
-    }
-
-    /// <summary>
-    /// AchievementData 인스턴스 생성 헬퍼 메서드
-    /// </summary>
-    private AchievementData CreateAchievementData(string id, string title, string description, 
-        AchievementData.AchievementConditionType conditionType, float targetValue)
-    {
-        var achievementData = ScriptableObject.CreateInstance<AchievementData>();
-        achievementData.achievementId = id;
-        achievementData.achievementTitle = title;
-        achievementData.achievementDescription = description;
-        achievementData.conditionType = conditionType;
-        achievementData.targetValue = targetValue;
-        achievementData.rewardType = AchievementData.RewardType.Diamond;
-        achievementData.rewardAmount = 1;
-        achievementData.achievementColor = Color.white;
-        achievementData.isUnlocked = false;
-        achievementData.achieveWormId = -1;
-        // achievementIcon은 null로 두고 UI에서 기본 아이콘 사용
-        
-        return achievementData;
-    }
 
     private void BuildAchievementMaps()
     {
@@ -165,26 +144,11 @@ namespace GGumtles.Managers
         }
     }
 
-    private void InitializeDefaultStates()
-    {
-        achievementStates.Clear();
-        
-        if (achievementDefinitions != null)
-        {
-            foreach (var def in achievementDefinitions)
-            {
-                if (!string.IsNullOrEmpty(def.achievementId) && !achievementStates.ContainsKey(def.achievementId))
-                {
-                    achievementStates.Add(def.achievementId, false); // 기본값: 해금되지 않음
-                }
-            }
-        }
-    }
 
     /// <summary>
-    /// 저장된 데이터로 초기화 (단순화)
+    /// 저장된 데이터로 초기화
     /// </summary>
-    public void Initialize(List<string> unlockedAchievementIds)
+    public void Initialize(List<string> unlockedAchievementIds, List<AchievementWormData> achievementWormIds)
     {
         if (!isInitialized)
         {
@@ -194,15 +158,38 @@ namespace GGumtles.Managers
 
         try
         {
-            InitializeDefaultStates();
+            // 모든 업적을 기본 상태(해금되지 않음)로 초기화
+            if (achievementDefinitions != null)
+            {
+                foreach (var achievement in achievementDefinitions)
+                {
+                    achievement.isUnlocked = false;
+                    achievement.achieveWormId = -1;
+                }
+            }
 
+            // 저장된 해금된 업적들 복원
             if (unlockedAchievementIds != null)
             {
                 foreach (var achievementId in unlockedAchievementIds)
                 {
-                    if (!string.IsNullOrEmpty(achievementId) && achievementStates.ContainsKey(achievementId))
+                    var achievement = GetAchievementData(achievementId);
+                    if (achievement != null)
                     {
-                        achievementStates[achievementId] = true; // 해금됨
+                        achievement.isUnlocked = true;
+                    }
+                }
+            }
+
+            // 저장된 달성 웜 ID들 복원
+            if (achievementWormIds != null)
+            {
+                foreach (var wormData in achievementWormIds)
+                {
+                    var achievement = GetAchievementData(wormData.achievementId);
+                    if (achievement != null)
+                    {
+                        achievement.achieveWormId = wormData.wormId;
                     }
                 }
             }
@@ -234,14 +221,14 @@ namespace GGumtles.Managers
 
         try
         {
-            if (!achievementStates.ContainsKey(achievementId))
+            var achievement = GetAchievementData(achievementId);
+            if (achievement == null)
             {
                 Debug.LogWarning($"[AchievementManager] 존재하지 않는 업적 ID: {achievementId}");
                 return;
             }
 
-            bool isUnlocked = achievementStates[achievementId];
-            if (!isUnlocked)
+            if (!achievement.isUnlocked)
             {
                 UnlockAchievement(achievementId);
             }
@@ -257,37 +244,78 @@ namespace GGumtles.Managers
     /// </summary>
     private void UnlockAchievement(string achievementId)
     {
-        achievementStates[achievementId] = true; // 해금됨
-
         var achievementData = GetAchievementData(achievementId);
+        if (achievementData == null)
+        {
+            Debug.LogWarning($"[AchievementManager] 업적 데이터를 찾을 수 없습니다: {achievementId}");
+            return;
+        }
+
+        achievementData.isUnlocked = true; // 해금됨
         
         // 달성 웜 ID 설정 (Achievement2 전용)
-        if (achievementData != null && achievementData.achieveWormId == -1)
+        if (achievementData.achieveWormId == -1)
         {
             SetAchievementWormId(achievementData);
         }
         
+        // 리워드 지급
+        GiveReward(achievementData);
+        
         // 이벤트 발생
         OnAchievementUnlockedEvent?.Invoke(achievementId, achievementData);
 
-        // 팝업 표시
-        if (achievementData != null)
+        // 해금 수 기반 메달 카운트 UI 동기화
+        if (TopBarManager.Instance != null)
         {
-            int index = achievementDefinitions.IndexOf(achievementData);
-            if (index >= 0)
-            {
-                // UIPrefabManager 삭제로 인해 AchieveTabUI에서 직접 처리
-                Debug.Log($"[AchievementManager] 업적 해금 알림: {achievementData.achievementTitle}");
-            }
+            TopBarManager.Instance.UpdateMedalCount(GetUnlockedCount());
         }
 
+        // 팝업 표시
+        Debug.Log($"[AchievementManager] 업적 해금 알림: {achievementData.achievementTitle}");
+        
         // 자동 저장
         if (GameSaveManager.Instance != null)
         {
             GameSaveManager.Instance.SaveGame();
         }
+        
+        Debug.Log($"[AchievementManager] 업적 해금: {achievementData.achievementTitle}");
+    }
 
-        Debug.Log($"[AchievementManager] 업적 해금: {achievementData?.achievementTitle ?? achievementId}");
+    /// <summary>
+    /// 업적 리워드 지급
+    /// </summary>
+    private void GiveReward(AchievementData achievementData)
+    {
+        try
+        {
+            switch (achievementData.rewardType)
+            {
+                case AchievementData.RewardType.Diamond:
+                    if (GameManager.Instance != null)
+                    {
+                        // 다이아몬드 지급
+                        for (int i = 0; i < achievementData.rewardAmount; i++)
+                        {
+                            GameManager.Instance.PickDiamond();
+                        }
+                        Debug.Log($"[AchievementManager] 업적 리워드 지급: 다이아몬드 {achievementData.rewardAmount}개");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[AchievementManager] GameManager가 없어 리워드를 지급할 수 없습니다.");
+                    }
+                    break;
+                default:
+                    Debug.LogWarning($"[AchievementManager] 알 수 없는 리워드 타입: {achievementData.rewardType}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[AchievementManager] 리워드 지급 중 오류: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -324,23 +352,19 @@ namespace GGumtles.Managers
     /// <summary>
     /// 달성 웜 ID 목록 가져오기 (저장용)
     /// </summary>
-    public Dictionary<string, int> GetAchievementWormIds()
+    public List<AchievementWormData> GetAchievementWormIds()
     {
-        var wormIds = new Dictionary<string, int>();
+        var wormIds = new List<AchievementWormData>();
         
         try
         {
-            foreach (var kvp in achievementStates)
+            if (achievementDefinitions != null)
             {
-                string achievementId = kvp.Key;
-                bool isUnlocked = kvp.Value;
-                
-                if (isUnlocked)
+                foreach (var achievement in achievementDefinitions)
                 {
-                    var achievementData = GetAchievementData(achievementId);
-                    if (achievementData != null && achievementData.achieveWormId >= 0)
+                    if (achievement.isUnlocked && achievement.achieveWormId >= 0)
                     {
-                        wormIds[achievementId] = achievementData.achieveWormId;
+                        wormIds.Add(new AchievementWormData(achievement.achievementId, achievement.achieveWormId));
                     }
                 }
             }
@@ -353,33 +377,6 @@ namespace GGumtles.Managers
         return wormIds;
     }
 
-    /// <summary>
-    /// 달성 웜 ID 설정 (로드용)
-    /// </summary>
-    public void SetAchievementWormIds(Dictionary<string, int> wormIds)
-    {
-        try
-        {
-            if (wormIds == null) return;
-            
-            foreach (var kvp in wormIds)
-            {
-                string achievementId = kvp.Key;
-                int wormId = kvp.Value;
-                
-                var achievementData = GetAchievementData(achievementId);
-                if (achievementData != null)
-                {
-                    achievementData.achieveWormId = wormId;
-                    Debug.Log($"[AchievementManager] 달성 웜 ID 로드: {achievementData.achievementTitle} -> 웜 ID: {wormId}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"[AchievementManager] 달성 웜 ID 설정 중 오류: {ex.Message}");
-        }
-    }
 
     /// <summary>
     /// 업적 진행도 업데이트
@@ -392,14 +389,15 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
-    /// 업적 해금 여부 조회 (단순화)
+    /// 업적 해금 여부 조회
     /// </summary>
     public bool IsUnlocked(string achievementId)
     {
         if (!isInitialized || string.IsNullOrEmpty(achievementId))
             return false;
 
-        return achievementStates.TryGetValue(achievementId, out var isUnlocked) ? isUnlocked : false;
+        var achievement = GetAchievementData(achievementId);
+        return achievement?.isUnlocked ?? false;
     }
 
     /// <summary>
@@ -422,13 +420,15 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
-    /// 해금된 업적 ID 목록 반환 (단순화)
+    /// 해금된 업적 ID 목록 반환
     /// </summary>
     public List<string> GetUnlockedIds()
     {
-        return achievementStates
-            .Where(p => p.Value)
-            .Select(p => p.Key)
+        if (achievementDefinitions == null) return new List<string>();
+        
+        return achievementDefinitions
+            .Where(achievement => achievement.isUnlocked)
+            .Select(achievement => achievement.achievementId)
             .ToList();
     }
 
@@ -437,7 +437,9 @@ namespace GGumtles.Managers
     /// </summary>
     public int GetUnlockedCount()
     {
-        return achievementStates.Count(p => p.Value);
+        if (achievementDefinitions == null) return 0;
+        
+        return achievementDefinitions.Count(achievement => achievement.isUnlocked);
     }
 
     /// <summary>
@@ -450,7 +452,7 @@ namespace GGumtles.Managers
     }
 
     /// <summary>
-    /// 조건에 따른 업적 체크 (확장 가능)
+    /// 조건에 따른 업적 체크 (동적)
     /// </summary>
     public void CheckAchievementByCondition(string conditionType, object value)
     {
@@ -459,16 +461,22 @@ namespace GGumtles.Managers
         switch (conditionType.ToLower())
         {
             case "acorn_count":
-                CheckAcornCountAchievements((int)value);
+                CheckAchievementsByType(AchievementData.AchievementConditionType.AcornCount, (int)value);
                 break;
             case "diamond_count":
-                CheckDiamondCountAchievements((int)value);
+                CheckAchievementsByType(AchievementData.AchievementConditionType.DiamondCount, (int)value);
                 break;
             case "worm_age":
-                CheckWormAgeAchievements((int)value);
+                CheckAchievementsByType(AchievementData.AchievementConditionType.WormAge, (int)value);
                 break;
             case "play_time":
-                CheckPlayTimeAchievements((float)value);
+                CheckAchievementsByType(AchievementData.AchievementConditionType.PlayTime, (float)value);
+                break;
+            case "item_count":
+                CheckAchievementsByType(AchievementData.AchievementConditionType.ItemCount, (int)value);
+                break;
+            case "worm_count":
+                CheckAchievementsByType(AchievementData.AchievementConditionType.WormCount, (int)value);
                 break;
             default:
                 Debug.LogWarning($"[AchievementManager] 알 수 없는 조건 타입: {conditionType}");
@@ -476,33 +484,30 @@ namespace GGumtles.Managers
         }
     }
 
-    private void CheckAcornCountAchievements(int acornCount)
+    /// <summary>
+    /// 조건 타입별 업적 체크 (동적)
+    /// </summary>
+    private void CheckAchievementsByType(AchievementData.AchievementConditionType conditionType, float currentValue)
     {
-        // 도토리 개수 관련 업적 체크
-        if (acornCount >= 5) CheckAchievement("Ach_01");
-        if (acornCount >= 10) CheckAchievement("Ach_02");
-        if (acornCount >= 50) CheckAchievement("Ach_03");
-    }
+        if (achievementDefinitions == null) return;
 
-    private void CheckDiamondCountAchievements(int diamondCount)
-    {
-        // 다이아몬드 개수 관련 업적 체크
-        if (diamondCount >= 1) CheckAchievement("Ach_04");
-        if (diamondCount >= 5) CheckAchievement("Ach_05");
-    }
+        try
+        {
+            var matchingAchievements = achievementDefinitions
+                .Where(a => a.conditionType == conditionType)
+                .Where(a => !a.isUnlocked && currentValue >= a.targetValue)
+                .ToList();
 
-    private void CheckWormAgeAchievements(int wormAge)
-    {
-        // 벌레 나이 관련 업적 체크
-        if (wormAge >= 10) CheckAchievement("Ach_06");
-        if (wormAge >= 30) CheckAchievement("Ach_07");
-    }
-
-    private void CheckPlayTimeAchievements(float playTime)
-    {
-        // 플레이 시간 관련 업적 체크
-        if (playTime >= 3600f) CheckAchievement("Ach_08"); // 1시간
-        if (playTime >= 86400f) CheckAchievement("Ach_09"); // 24시간
+            foreach (var achievement in matchingAchievements)
+            {
+                CheckAchievement(achievement.achievementId);
+                Debug.Log($"[AchievementManager] 조건 달성: {achievement.achievementTitle} (현재값: {currentValue}, 목표값: {achievement.targetValue})");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[AchievementManager] 조건별 업적 체크 중 오류: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -513,12 +518,21 @@ namespace GGumtles.Managers
     {
         if (!isInitialized) return;
 
-        foreach (var achId in achievementStates.Keys.ToList())
+        if (achievementDefinitions != null)
         {
-            if (!IsUnlocked(achId))
+            foreach (var achievement in achievementDefinitions)
             {
-                UnlockAchievement(achId);
+                if (!achievement.isUnlocked)
+                {
+                    achievement.isUnlocked = true;
+                    SetAchievementWormId(achievement);
+                }
             }
+        }
+
+        if (GameSaveManager.Instance != null)
+        {
+            GameSaveManager.Instance.SaveGame();
         }
 
         Debug.Log("[AchievementManager] 모든 업적이 해금되었습니다.");
@@ -532,9 +546,13 @@ namespace GGumtles.Managers
     {
         if (!isInitialized) return;
 
-        foreach (var achId in achievementStates.Keys.ToList())
+        if (achievementDefinitions != null)
         {
-            achievementStates[achId] = false;
+            foreach (var achievement in achievementDefinitions)
+            {
+                achievement.isUnlocked = false;
+                achievement.achieveWormId = -1;
+            }
         }
 
         if (GameSaveManager.Instance != null)

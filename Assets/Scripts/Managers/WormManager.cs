@@ -249,6 +249,19 @@ namespace GGumtles.Managers
             // 이벤트 발생
             OnWormCreatedEvent?.Invoke(newWorm);
 
+            // 웜 개수 업적 체크
+            if (AchievementManager.Instance != null)
+            {
+                AchievementManager.Instance.CheckAchievementByCondition("worm_count", TotalWorms);
+            }
+
+            // 웜 생성 후 자동 저장
+            if (GameSaveManager.Instance != null)
+            {
+                GameSaveManager.Instance.SaveGame();
+                LogDebug("[WormManager] 새 웜 생성 후 자동 저장 완료");
+            }
+
             // 팝업 표시 (EggPopup는 현재 구현되지 않음)
             // PopupManager.Instance?.OpenEggPopup();
 
@@ -489,6 +502,12 @@ namespace GGumtles.Managers
         
         // 이벤트 발생
         OnWormEvolvedEvent?.Invoke(worm, fromStage, toStage);
+
+        // 웜 나이 업적 체크
+        if (AchievementManager.Instance != null)
+        {
+            AchievementManager.Instance.CheckAchievementByCondition("worm_age", worm.age);
+        }
 
         // 알림 표시
         if (showEvolutionNotifications)

@@ -289,6 +289,11 @@ namespace GGumtles.Managers
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnResourceChangedEvent += OnResourceChanged;
+            Debug.Log("[TopBarManager] GameManager OnResourceChangedEvent 구독 완료");
+        }
+        else
+        {
+            Debug.LogWarning("[TopBarManager] GameManager가 null이어서 이벤트 구독 실패");
         }
         
         // WormManager 이벤트는 SubscribeToTabManagerWhenReady()에서 구독
@@ -296,6 +301,7 @@ namespace GGumtles.Managers
 
     private void OnResourceChanged(int acornCount, int diamondCount)
     {
+        Debug.Log($"[TopBarManager] OnResourceChanged 호출 - 도토리: {acornCount}, 다이아몬드: {diamondCount}, 초기화됨: {isInitialized}");
         UpdateAcornCount(acornCount);
         UpdateDiamondCount(diamondCount);
     }
@@ -537,13 +543,23 @@ namespace GGumtles.Managers
     /// </summary>
     public void UpdateAcornCount(int newCount)
     {
-        if (!isInitialized) return;
+        if (!isInitialized) 
+        {
+            Debug.Log($"[TopBarManager] UpdateAcornCount 호출됨 - 초기화되지 않음, 도토리: {newCount}");
+            return;
+        }
 
         currentAcornCount = newCount;
 
         if (currentTopBarType == TopBarType.NonGameState && acornCountText != null)
         {
+            bool isTextActive = acornCountText.gameObject.activeInHierarchy;
+            Debug.Log($"[TopBarManager] UpdateAcornCount - 도토리: {newCount}, TopBarType: {currentTopBarType}, 텍스트활성화: {isTextActive}");
             UpdateCountText(acornCountText, newCount);
+        }
+        else
+        {
+            Debug.Log($"[TopBarManager] UpdateAcornCount 조건 불만족 - TopBarType: {currentTopBarType}, acornCountText null: {acornCountText == null}");
         }
     }
 
@@ -829,6 +845,52 @@ namespace GGumtles.Managers
         showSeconds = show;
     }
 
+    /// <summary>
+    /// 게임별 TopBar UI 설정
+    /// </summary>
+    /// <param name="gameType">게임 타입 (1-4)</param>
+    public void SetGameStateUI(int gameType)
+    {
+        if (timeText == null || gameNameText == null || scoreText == null)
+        {
+            Debug.LogWarning("[TopBarManager] GameState UI 컴포넌트가 연결되지 않았습니다!");
+            return;
+        }
+
+        switch (gameType)
+        {
+            case 1: // 달려라 꿈틀
+                timeText.text = "0.00 초";
+                gameNameText.text = "달려라 꿈틀";
+                scoreText.text = "0.00 m/s";
+                break;
+                
+            case 2: // 헤딩 마스터
+                timeText.text = "0.00 초";
+                gameNameText.text = "헤딩 마스터";
+                scoreText.text = "0 회";
+                break;
+                
+            case 3: // 위험한 도로
+                timeText.text = "45.0 초";
+                gameNameText.text = "위험한 도로";
+                scoreText.text = "0 회";
+                break;
+                
+            case 4: // 몸을 날려라
+                timeText.text = "15.0 초";
+                gameNameText.text = "몸을 날려라";
+                scoreText.text = "0.00 m";
+                break;
+                
+            default:
+                Debug.LogWarning($"[TopBarManager] 알 수 없는 게임 타입: {gameType}");
+                break;
+        }
+        
+        Debug.Log($"[TopBarManager] GameType {gameType} UI 설정 완료");
+    }
+
 
 
     /// <summary>
@@ -857,6 +919,31 @@ namespace GGumtles.Managers
     public string GetUIStatus()
     {
         return $"도토리: {currentAcornCount}, 다이아몬드: {currentDiamondCount}, 메달: {currentMedalCount}, 스코어: {currentScore}";
+    }
+
+    /// <summary>
+    /// 강제로 모든 Count 텍스트 업데이트 (디버그/복구용)
+    /// </summary>
+    public void ForceUpdateAllCounts()
+    {
+        if (!isInitialized) return;
+
+        Debug.Log("[TopBarManager] 강제 Count 업데이트 시작");
+        
+        // GameManager에서 현재 값 가져오기
+        if (GameManager.Instance != null)
+        {
+            UpdateAcornCount(GameManager.Instance.acornCount);
+            UpdateDiamondCount(GameManager.Instance.diamondCount);
+        }
+        
+        // 현재 탭에 맞게 UI 업데이트
+        if (currentTopBarType == TopBarType.NonGameState)
+        {
+            UpdateNonGameStateCountTexts();
+        }
+        
+        Debug.Log("[TopBarManager] 강제 Count 업데이트 완료");
     }
 
     private void OnDestroy()

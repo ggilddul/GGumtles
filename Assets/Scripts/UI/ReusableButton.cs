@@ -88,7 +88,15 @@ namespace GGumtles.UI
         
         private void Start()
         {
-            // 추가 초기화가 필요한 경우 여기에 구현
+            // 웜 상태에 따른 버튼 활성화/비활성화 체크
+            CheckWormStateForButton();
+            
+            // 웜 상태 변경 이벤트 구독
+            if (WormManager.Instance != null)
+            {
+                WormManager.Instance.OnWormEvolvedEvent += OnWormEvolved;
+                WormManager.Instance.OnCurrentWormChangedEvent += OnCurrentWormChanged;
+            }
         }
         
         private void OnDestroy()
@@ -97,6 +105,13 @@ namespace GGumtles.UI
             Button button = GetComponent<Button>();
             if (button != null)
                 button.onClick.RemoveListener(OnButtonClicked);
+                
+            // 웜 상태 변경 이벤트 구독 해제
+            if (WormManager.Instance != null)
+            {
+                WormManager.Instance.OnWormEvolvedEvent -= OnWormEvolved;
+                WormManager.Instance.OnCurrentWormChangedEvent -= OnCurrentWormChanged;
+            }
         }
         
         /// <summary>
@@ -153,10 +168,6 @@ namespace GGumtles.UI
                     if (AudioManager.Instance.sfxClips != null && AudioManager.Instance.sfxClips.Length > 1)
                         return AudioManager.Instance.sfxClips[1]; // EarnItem = 1
                     break;
-                case ButtonAction.FeedWorm:
-                    if (AudioManager.Instance.sfxClips != null && AudioManager.Instance.sfxClips.Length > 5)
-                        return AudioManager.Instance.sfxClips[5]; // FeedWorm = 5
-                    break;
                 default:
                     // 기본 버튼 클릭 사운드
                     if (AudioManager.Instance.buttonClips.Length > 0)
@@ -181,11 +192,10 @@ namespace GGumtles.UI
                     AudioManager.Instance?.PlaySFX(AudioManager.SFXType.ShakeTree);
                     return;
                 case ButtonAction.CollectAcorn:
-                case ButtonAction.CollectDiamond:
                     AudioManager.Instance?.PlaySFX(AudioManager.SFXType.EarnItem);
                     return;
-                case ButtonAction.FeedWorm:
-                    AudioManager.Instance?.PlaySFX(AudioManager.SFXType.FeedWorm);
+                case ButtonAction.CollectDiamond:
+                    AudioManager.Instance?.PlaySFX(AudioManager.SFXType.EarnItem);
                     return;
                 default:
                     // 기본 버튼 클릭 사운드
@@ -220,10 +230,6 @@ namespace GGumtles.UI
                 case ButtonAction.EquipItem:
                     // ItemManager.EquipItemByType이 없으므로 임시 처리
                     Debug.Log($"[ReusableButton] 아이템 장착: {actionParameter}");
-                    break;
-                    
-                case ButtonAction.ShakeTree:
-                    TreeController.Instance?.ShakeTree();
                     break;
                     
                 case ButtonAction.CollectAcorn:
@@ -302,13 +308,20 @@ namespace GGumtles.UI
                         {
                             var achievementData = allDefinitions[achievementIndex];
                             bool isUnlocked = AchievementManager.Instance.IsUnlocked(achievementData.achievementId);
+                            
+                            Debug.Log($"[ReusableButton] 업적 팝업 열기 - ID: {achievementData.achievementId}, 제목: {achievementData.achievementTitle}, 해금됨: {isUnlocked}");
+                            
                             if (isUnlocked)
                             {
-                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                                // 해금된 업적 → Achievement2 팝업 (unlocked 상태용)
+                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                                Debug.Log($"[ReusableButton] Achievement2 팝업 열기 (해금된 업적)");
                             }
                             else
                             {
-                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement2, PopupManager.PopupPriority.Normal, achievementIndex);
+                                // 잠긴 업적 → Achievement1 팝업 (locked 상태용)
+                                PopupManager.Instance?.OpenPopup(PopupManager.PopupType.Achievement1, PopupManager.PopupPriority.Normal, achievementIndex);
+                                Debug.Log($"[ReusableButton] Achievement1 팝업 열기 (잠긴 업적)");
                             }
                         }
                     }
@@ -412,6 +425,34 @@ namespace GGumtles.UI
         {
             buttonAction = action;
             actionParameterString = parameter ?? string.Empty;
+        }
+
+        /// <summary>
+        /// 웜 상태에 따른 버튼 활성화/비활성화 체크
+        /// </summary>
+        private void CheckWormStateForButton()
+        {
+            // ShakeTree 버튼의 egg 상태 체크 제거 - 항상 활성화
+            if (buttonAction != ButtonAction.ShakeTree) return;
+
+            // ShakeTree 버튼은 항상 활성화
+            SetInteractable(true);
+        }
+
+        /// <summary>
+        /// 웜 진화 이벤트 핸들러
+        /// </summary>
+        private void OnWormEvolved(WormData worm, int fromStage, int toStage)
+        {
+            CheckWormStateForButton();
+        }
+
+        /// <summary>
+        /// 현재 웜 변경 이벤트 핸들러
+        /// </summary>
+        private void OnCurrentWormChanged(WormData previousWorm, WormData newWorm)
+        {
+            CheckWormStateForButton();
         }
     }
 }

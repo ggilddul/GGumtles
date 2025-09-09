@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ach_05
   m_EditorClassIdentifier: 
   achievementId: 5
-  achievementTitle: "\uB3C4\uD1A0\uB9AC \uCC3D\uACE0"
+  achievementTitle: "\uB3C4\uD1A0\uB9AC \uAC11\uBD80"
   achievementDescription: "\uB3C4\uD1A0\uB9AC 30\uAC1C\uB97C \uBAA8\uC73C\uC138\uC694!"
   conditionType: 0
   targetValue: 30

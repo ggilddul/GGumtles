@@ -43,6 +43,11 @@ public class GameSaveData
     public List<string> unlockedAchIds = new List<string>();
     public List<AchievementWormData> achievementWormIds = new List<AchievementWormData>(); // 달성 웜 ID 저장
     public int selectedMapIndex = 0;
+    
+    [Header("착용 아이템")]
+    public string equippedHatId = "";
+    public string equippedFaceId = "";
+    public string equippedCostumeId = "";
 
     [Header("설정")]
     public AudioOption sfxOption = AudioOption.Medium;

@@ -427,10 +427,13 @@ namespace GGumtles.Managers
 
     private void SetupAchievement1Popup(GameObject popupObject, int achievementIndex)
     {
+        Debug.Log($"[PopupManager] Achievement1 팝업 설정 - 인덱스: {achievementIndex} (잠긴 업적용)");
+        
         var popup = popupObject.GetComponent<AchievementUI>();
         if (popup != null)
         {
-            popup.Initialize(achievementIndex);
+            popup.Initialize(achievementIndex, false); // Achievement1 (잠긴 상태)
+            Debug.Log($"[PopupManager] Achievement1 팝업 초기화 완료");
         }
         else
         {
@@ -440,10 +443,13 @@ namespace GGumtles.Managers
 
     private void SetupAchievement2Popup(GameObject popupObject, int achievementIndex)
     {
+        Debug.Log($"[PopupManager] Achievement2 팝업 설정 - 인덱스: {achievementIndex} (해금된 업적용)");
+        
         var popup = popupObject.GetComponent<AchievementUI>();
         if (popup != null)
         {
-            popup.Initialize(achievementIndex, true); // Achievement2 전용
+            popup.Initialize(achievementIndex, true); // Achievement2 (해금된 상태)
+            Debug.Log($"[PopupManager] Achievement2 팝업 초기화 완료");
         }
         else
         {

@@ -16,6 +16,7 @@ namespace GGumtles.UI
         [SerializeField] private TextMeshProUGUI itemDrawTypeText2; // 보유중인 다이아몬드 : x개
         [SerializeField] private Button confirmButton;
         [SerializeField] private Button declineButton;
+        [SerializeField] private GameObject diamondToast; // 다이아몬드 부족 시 표시할 Toast
         
         [Header("디버그")]
         [SerializeField] private bool enableDebugLogs = false;
@@ -107,16 +108,38 @@ namespace GGumtles.UI
         {
             LogDebug($"[DrawConfirmPopupUI] 확인 버튼 클릭됨 - {selectedItemType}");
             
-            // 미보유 우선 랜덤 획득
-            ItemData drawnItem = DrawRandomUnownedItem(selectedItemType);
-
-            // 현재 Confirm 팝업 제거
-            Destroy(gameObject);
-
-            // 결과 팝업 열기
-            if (drawnItem != null)
+            // 다이아몬드 차감 시도
+            if (GameManager.Instance != null)
             {
-                PopupManager.Instance?.OpenDrawResultPopup(drawnItem);
+                if (GameManager.Instance.diamondCount > 0)
+                {
+                    // 다이아몬드 차감
+                    GameManager.Instance.UseDiamond();
+                    
+                    // 미보유 우선 랜덤 획득
+                    ItemData drawnItem = DrawRandomUnownedItem(selectedItemType);
+
+                    // 현재 Confirm 팝업 제거
+                    Destroy(gameObject);
+
+                    // 결과 팝업 열기
+                    if (drawnItem != null)
+                    {
+                        PopupManager.Instance?.OpenDrawResultPopup(drawnItem);
+                    }
+                    
+                    LogDebug($"[DrawConfirmPopupUI] 다이아몬드 차감 후 뽑기 실행 - 남은 다이아몬드: {GameManager.Instance.diamondCount}");
+                }
+                else
+                {
+                    // 다이아몬드 부족 - Toast 표시
+                    ShowDiamondToast();
+                    LogDebug("[DrawConfirmPopupUI] 다이아몬드 부족 - Toast 표시");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[DrawConfirmPopupUI] GameManager가 없습니다!");
             }
         }
         
@@ -182,6 +205,22 @@ namespace GGumtles.UI
             };
         }
         
+        /// <summary>
+        /// 다이아몬드 부족 Toast 표시
+        /// </summary>
+        private void ShowDiamondToast()
+        {
+            if (diamondToast != null)
+            {
+                diamondToast.SetActive(true);
+                LogDebug("[DrawConfirmPopupUI] 다이아몬드 부족 Toast 활성화");
+            }
+            else
+            {
+                Debug.LogWarning("[DrawConfirmPopupUI] diamondToast가 연결되지 않았습니다!");
+            }
+        }
+
         private void LogDebug(string message)
         {
             if (enableDebugLogs)

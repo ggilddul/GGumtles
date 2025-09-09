@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using GGumtles.Managers;
 
 namespace GGumtles.UI
 {
@@ -48,6 +49,12 @@ namespace GGumtles.UI
     /// </summary>
     public void ShakeTree()
     {   
+        // 현재 웜이 있으면 통계 업데이트
+        if (WormManager.Instance?.CurrentWorm != null)
+        {
+            WormManager.Instance.CurrentWorm.statistics.totalShakeCount++;
+        }
+        
         // 아이템 드롭 처리
         ProcessItemDrops();
     }

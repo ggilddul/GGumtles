@@ -16,7 +16,7 @@ MonoBehaviour:
   achievementTitle: "\uC131\uC7A5\uD1B5"
   achievementDescription: "\uCC98\uC74C \uC9C4\uD654\uB97C \uACAA\uC5B4\uBD05\uB2C8\uB2E4!"
   conditionType: 2
-  targetValue: 240
+  targetValue: 120
   rewardType: 0
   rewardAmount: 1
   achievementIcon: {fileID: 21300000, guid: d14d3f9fb7fef4671b0c76e3f00df8c3, type: 3}

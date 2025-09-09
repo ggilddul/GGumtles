@@ -3,6 +3,7 @@ using System.IO;
 using System;
 using UnityEngine;
 using System.Collections;
+using System.Linq;
 using GGumtles.Data;
 using GGumtles.Managers;
 
@@ -16,6 +17,11 @@ namespace GGumtles.Managers
     private string saveFilePath;
     private string backupFilePath;
     private const int MAX_BACKUP_COUNT = 3;
+
+    [Header("자동 저장 설정")]
+    [SerializeField] private bool enableAutoSave = true;
+    [SerializeField] private float autoSaveInterval = 1f; // 1초마다 자동 저장
+    private Coroutine autoSaveCoroutine;
 
     public delegate void OnGameSaveDataLoaded();
     public event OnGameSaveDataLoaded OnGameSaveDataLoadedEvent;
@@ -47,6 +53,9 @@ namespace GGumtles.Managers
     {
         LoadGame();
         OnGameSaveDataLoadedEvent?.Invoke();
+        
+        // 자동 저장 시작
+        StartAutoSave();
     }
 
     /// <summary>
@@ -203,13 +212,8 @@ namespace GGumtles.Managers
             
             if (currentSaveData.unlockedAchIds != null)
             {
-                AchievementManager.Instance.Initialize(currentSaveData.unlockedAchIds);
-                
-                // 달성 웜 ID 로드
-                if (currentSaveData.achievementWormIds != null)
-                {
-                    LoadAchievementWormIds();
-                }
+                // 새로운 Initialize 메서드 사용 (두 매개변수 모두 전달)
+                AchievementManager.Instance.Initialize(currentSaveData.unlockedAchIds, currentSaveData.achievementWormIds);
             }
         }
         else
@@ -218,30 +222,6 @@ namespace GGumtles.Managers
         }
     }
 
-    /// <summary>
-    /// 달성 웜 ID 로드
-    /// </summary>
-    private void LoadAchievementWormIds()
-    {
-        try
-        {
-            var wormIdsDict = new Dictionary<string, int>();
-            foreach (var wormData in currentSaveData.achievementWormIds)
-            {
-                if (!string.IsNullOrEmpty(wormData.achievementId))
-                {
-                    wormIdsDict[wormData.achievementId] = wormData.wormId;
-                }
-            }
-            
-            AchievementManager.Instance.SetAchievementWormIds(wormIdsDict);
-            Debug.Log($"[GameSaveManager] 달성 웜 ID 로드 완료: {currentSaveData.achievementWormIds.Count}개");
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"[GameSaveManager] 달성 웜 ID 로드 중 오류: {ex.Message}");
-        }
-    }
 
     /// <summary>
     /// 신규 저장 데이터 기본값 설정
@@ -262,15 +242,11 @@ namespace GGumtles.Managers
         currentSaveData.sfxOption = GameSaveData.AudioOption.High;
         currentSaveData.bgmOption = GameSaveData.AudioOption.High;
 
-        // 초기 아이템 추가
-        if (ItemManager.Instance != null)
-        {
-            ItemManager.Instance.AddItem("100", 1, false);
-            ItemManager.Instance.AddItem("200", 1, false);
-            ItemManager.Instance.AddItem("300", 1, false);
-        }
+        // 초기 아이템 추가 (ItemManager 초기화 후에 처리)
+        // ItemManager가 초기화되지 않은 상태에서는 건너뛰고, 나중에 LoadingManager에서 처리
 
-        SaveGame();
+        // SaveGame() 호출 제거 - 무한 루프 방지
+        // LoadingManager에서 모든 초기화가 완료된 후 SaveGame이 호출됨
     }
 
     /// <summary>
@@ -289,6 +265,42 @@ namespace GGumtles.Managers
         {
             currentSaveData.unlockedAchIds = GetUnlockedAchIds();
             currentSaveData.achievementWormIds = GetAchievementWormIds();
+        }
+
+        // 웜 데이터 갱신
+        if (WormManager.Instance != null && WormManager.Instance.IsInitialized)
+        {
+            currentSaveData.wormList = WormManager.Instance.GetAllWorms();
+            Debug.Log($"[GameSaveManager] 웜 데이터 갱신 - 웜 수: {currentSaveData.wormList.Count}");
+        }
+        else
+        {
+            // WormManager가 초기화되지 않은 경우 빈 리스트로 설정
+            currentSaveData.wormList = new List<WormData>();
+            Debug.Log("[GameSaveManager] WormManager가 초기화되지 않음 - 빈 웜 리스트로 설정");
+        }
+
+        // 아이템 데이터 갱신
+        if (ItemManager.Instance != null && ItemManager.Instance.IsInitialized)
+        {
+            currentSaveData.ownedItemIds = ItemManager.Instance.GetOwnedItems().Select(item => item.itemId).ToList();
+            
+            // 착용 아이템 정보 저장
+            var equippedItems = ItemManager.Instance.GetEquippedItems();
+            currentSaveData.equippedHatId = equippedItems.hatId;
+            currentSaveData.equippedFaceId = equippedItems.faceId;
+            currentSaveData.equippedCostumeId = equippedItems.costumeId;
+            
+            Debug.Log($"[GameSaveManager] 아이템 데이터 갱신 - 아이템 수: {currentSaveData.ownedItemIds.Count}");
+        }
+        else
+        {
+            // ItemManager가 초기화되지 않은 경우 빈 리스트로 설정
+            currentSaveData.ownedItemIds = new List<string>();
+            currentSaveData.equippedHatId = "";
+            currentSaveData.equippedFaceId = "";
+            currentSaveData.equippedCostumeId = "";
+            Debug.Log("[GameSaveManager] ItemManager가 초기화되지 않음 - 빈 아이템 리스트로 설정");
         }
 
         StartCoroutine(SaveGameAsync());
@@ -364,28 +376,22 @@ namespace GGumtles.Managers
     /// </summary>
     public List<AchievementWormData> GetAchievementWormIds()
     {
-        List<AchievementWormData> wormIds = new List<AchievementWormData>();
-
         if (AchievementManager.Instance == null)
         {
             Debug.LogWarning("[GameSaveManager] AchievementManager 인스턴스가 null입니다.");
-            return wormIds;
+            return new List<AchievementWormData>();
         }
 
         try
         {
-            var wormIdsDict = AchievementManager.Instance.GetAchievementWormIds();
-            foreach (var kvp in wormIdsDict)
-            {
-                wormIds.Add(new AchievementWormData(kvp.Key, kvp.Value));
-            }
+            // AchievementManager에서 직접 List<AchievementWormData> 반환
+            return AchievementManager.Instance.GetAchievementWormIds();
         }
         catch (Exception ex)
         {
             Debug.LogError($"[GameSaveManager] 달성 웜 ID 가져오기 중 오류: {ex.Message}");
+            return new List<AchievementWormData>();
         }
-
-        return wormIds;
     }
 
     /// <summary>
@@ -401,7 +407,19 @@ namespace GGumtles.Managers
     /// </summary>
     public List<WormData> GetWormData()
     {
-        return currentSaveData?.wormList ?? new List<WormData>();
+        var wormList = currentSaveData?.wormList ?? new List<WormData>();
+        Debug.Log($"[GameSaveManager] GetWormData 호출 - 웜 수: {wormList.Count}, currentSaveData null: {currentSaveData == null}");
+        
+        if (currentSaveData != null && currentSaveData.wormList != null)
+        {
+            for (int i = 0; i < currentSaveData.wormList.Count; i++)
+            {
+                var worm = currentSaveData.wormList[i];
+                Debug.Log($"[GameSaveManager] 웜 {i}: ID={worm?.wormId}, Name={worm?.name}, Generation={worm?.generation}");
+            }
+        }
+        
+        return wormList;
     }
 
     /// <summary>
@@ -423,6 +441,119 @@ namespace GGumtles.Managers
         {
             Debug.LogError($"[GameSaveManager] 백업 생성 실패: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 자동 저장 시작
+    /// </summary>
+    private void StartAutoSave()
+    {
+        if (!enableAutoSave) return;
+        
+        StopAutoSave(); // 기존 자동 저장 중지
+        
+        autoSaveCoroutine = StartCoroutine(AutoSaveCoroutine());
+        Debug.Log($"[GameSaveManager] 자동 저장 시작 - 간격: {autoSaveInterval}초");
+    }
+
+    /// <summary>
+    /// 자동 저장 중지
+    /// </summary>
+    private void StopAutoSave()
+    {
+        if (autoSaveCoroutine != null)
+        {
+            StopCoroutine(autoSaveCoroutine);
+            autoSaveCoroutine = null;
+            Debug.Log("[GameSaveManager] 자동 저장 중지");
+        }
+    }
+
+    /// <summary>
+    /// 자동 저장 코루틴
+    /// </summary>
+    private IEnumerator AutoSaveCoroutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(autoSaveInterval);
+            
+            if (currentSaveData != null)
+            {
+                SaveGame();
+                Debug.Log($"[GameSaveManager] 자동 저장 완료 - {DateTime.Now:HH:mm:ss}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 자동 저장 설정 변경
+    /// </summary>
+    public void SetAutoSave(bool enabled, float interval = 1f)
+    {
+        enableAutoSave = enabled;
+        autoSaveInterval = interval;
+        
+        if (enabled)
+        {
+            StartAutoSave();
+        }
+        else
+        {
+            StopAutoSave();
+        }
+        
+        Debug.Log($"[GameSaveManager] 자동 저장 설정 변경 - 활성화: {enabled}, 간격: {interval}초");
+    }
+
+    /// <summary>
+    /// 게임 종료 시 강제 저장
+    /// </summary>
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            Debug.Log("[GameSaveManager] 게임 일시정지 - 강제 저장");
+            SaveGame();
+        }
+    }
+
+    /// <summary>
+    /// 게임 포커스 잃을 때 강제 저장
+    /// </summary>
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+        {
+            Debug.Log("[GameSaveManager] 게임 포커스 상실 - 강제 저장");
+            SaveGame();
+        }
+    }
+
+    /// <summary>
+    /// 게임 종료 시 강제 저장
+    /// </summary>
+    private void OnApplicationQuit()
+    {
+        Debug.Log("[GameSaveManager] 게임 종료 - 강제 저장");
+        StopAutoSave();
+        SaveGame();
+    }
+
+    /// <summary>
+    /// 보유 아이템 ID 목록 반환
+    /// </summary>
+    public List<string> GetOwnedItemIds()
+    {
+        return currentSaveData?.ownedItemIds ?? new List<string>();
+    }
+
+    /// <summary>
+    /// 오브젝트 파괴 시 자동 저장 중지
+    /// </summary>
+    private void OnDestroy()
+    {
+        StopAutoSave();
     }
     }
 }

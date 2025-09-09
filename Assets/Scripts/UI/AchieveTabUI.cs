@@ -183,8 +183,23 @@ namespace GGumtles.UI
             
             // 프리팹 인스턴스 생성
             LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성: {achievementButtonPrefab?.name}");
+            if (achievementButtonPrefab == null)
+            {
+                Debug.LogError("[AchieveTabUI] achievementButtonPrefab이 null입니다! Inspector에서 AchButtonObject 프리팹을 할당하세요.");
+                return;
+            }
             GameObject buttonObj = Instantiate(achievementButtonPrefab, contentParent);
             LogDebug($"[AchieveTabUI] 프리팹 인스턴스 생성 완료: {buttonObj?.name}");
+            
+            // 프리팹 구조 디버깅
+            LogDebug($"[AchieveTabUI] 프리팹 구조 확인:");
+            LogDebug($"  - GameObject 이름: {buttonObj.name}");
+            LogDebug($"  - 자식 개수: {buttonObj.transform.childCount}");
+            for (int i = 0; i < buttonObj.transform.childCount; i++)
+            {
+                var child = buttonObj.transform.GetChild(i);
+                LogDebug($"  - 자식[{i}]: {child.name}");
+            }
             
             AchievementButtonUI buttonUI = buttonObj.GetComponent<AchievementButtonUI>();
             LogDebug($"[AchieveTabUI] AchievementButtonUI 컴포넌트 찾기: {buttonUI != null}");
@@ -307,6 +322,7 @@ namespace GGumtles.UI
         {
             CreateAchievementList();
         }
+
         
         /// <summary>
         /// 특정 업적 버튼 색상 업데이트

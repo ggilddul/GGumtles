@@ -31,6 +31,11 @@ namespace GGumtles.Managers
     private string AMPM;
     private int lastMinute = -1;
     private bool isGameInitialized = false;
+    
+    // 속도 부스트 관련 변수
+    private bool isSpeedBoostActive = false;
+    private Coroutine speedBoostCoroutine;
+    private float boostFactor = 1f; // 부스트 배수 (평시: 1, 부스트 시: 10)
 
     [Header("Resources")]
     public int acornCount;
@@ -44,6 +49,7 @@ namespace GGumtles.Managers
     public int CurrentHour => hour;
     public int CurrentMinute => minute;
     public string CurrentAMPM => AMPM;
+    public float BoostFactor => boostFactor;
 
     // 이벤트 정의
     public delegate void OnGameTimeChanged(int hour, int minute, string ampm);
@@ -205,6 +211,13 @@ namespace GGumtles.Managers
     {
         acornCount++;
         OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+        
+        // 도토리 업적 체크
+        if (AchievementManager.Instance != null)
+        {
+            AchievementManager.Instance.CheckAchievementByCondition("acorn_count", acornCount);
+        }
+        
         Debug.Log($"[GameManager] 도토리 획득 - 총 개수: {acornCount}");
     }
 
@@ -212,7 +225,29 @@ namespace GGumtles.Managers
     {
         diamondCount++;
         OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+        WormManager.Instance.CurrentWorm.statistics.totalDiamondCount++;
+        
+        // 다이아몬드 업적 체크
+        if (AchievementManager.Instance != null)
+        {
+            AchievementManager.Instance.CheckAchievementByCondition("diamond_count", diamondCount);
+        }
+        
         Debug.Log($"[GameManager] 다이아몬드 획득 - 총 개수: {diamondCount}");
+    }
+
+    public void UseDiamond()
+    {
+        if (diamondCount > 0)
+        {
+            diamondCount--;
+            OnResourceChangedEvent?.Invoke(acornCount, diamondCount);
+            Debug.Log($"[GameManager] 다이아몬드 사용 - 남은 개수: {diamondCount}");
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] 다이아몬드가 부족합니다.");
+        }
     }
 
     public void EarnItem(int index)
@@ -362,26 +397,8 @@ namespace GGumtles.Managers
         Debug.Log("[GameManager] 게임 데이터 저장 완료");
     }
 
-    private void OnApplicationPause(bool pauseStatus)
-    {
-        if (pauseStatus)
-        {
-            SaveGameData();
-        }
-    }
-
-    private void OnApplicationFocus(bool hasFocus)
-    {
-        if (!hasFocus)
-        {
-            SaveGameData();
-        }
-    }
-
-    private void OnApplicationQuit()
-    {
-        SaveGameData();
-    }
+    // GameSaveManager에서 자동 저장을 처리하므로 중복 제거
+    // OnApplicationPause, OnApplicationFocus, OnApplicationQuit은 GameSaveManager에서 처리
 
     // 디버그용 메서드
     public void SetGameTime(float newTime)
@@ -394,6 +411,51 @@ namespace GGumtles.Managers
     {
         timeScale = newScale;
         Debug.Log($"[GameManager] 시간 배율 설정: {newScale}");
+    }
+
+    /// <summary>
+    /// 도토리를 먹었을 때 15초간 10배속으로 시간을 가속시키는 함수
+    /// </summary>
+    public void StartSpeedBoost()
+    {
+        if (speedBoostCoroutine != null)
+        {
+            StopCoroutine(speedBoostCoroutine);
+        }
+        speedBoostCoroutine = StartCoroutine(SpeedBoostCoroutine());
+    }
+
+    /// <summary>
+    /// 속도 부스트 코루틴 - 15초간 10배속 적용
+    /// </summary>
+    private IEnumerator SpeedBoostCoroutine()
+    {
+        if (isSpeedBoostActive)
+        {
+            yield break; // 이미 활성화되어 있으면 중복 실행 방지
+        }
+
+        isSpeedBoostActive = true;
+        float originalTimeScale = timeScale;
+        float boostedTimeScale = DEFAULT_TIME_SCALE * 10f; // 10배속
+
+        Debug.Log($"[GameManager] 속도 부스트 시작! {originalTimeScale} → {boostedTimeScale} (15초간)");
+        
+        // 10배속 적용
+        timeScale = boostedTimeScale;
+        boostFactor = 10f; // 부스트 배수 설정
+
+        // 15초 대기
+        yield return new WaitForSeconds(15f);
+
+        // 원래 속도로 복원
+        timeScale = originalTimeScale;
+        boostFactor = 1f; // 부스트 배수 복원
+        isSpeedBoostActive = false;
+        
+        Debug.Log($"[GameManager] 속도 부스트 종료! {boostedTimeScale} → {originalTimeScale}");
+        
+        speedBoostCoroutine = null;
     }
     }
 }

@@ -67,7 +67,7 @@ namespace GGumtles.UI
                 // 다이아몬드 획득
                 if (GameManager.Instance != null)
                 {
-                    GameManager.Instance.diamondCount++;
+                    GameManager.Instance.PickDiamond();
                 }
 
                 // 상태 변경

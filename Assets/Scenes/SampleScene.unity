@@ -151,7 +151,7 @@ MonoBehaviour:
   feedAcornPrefab: {fileID: 8315984189467255786, guid: 49e30b6cf73b74eaf895b7c298e2ac2b, type: 3}
   dropOrigin: {fileID: 9649}
   dropParent: {fileID: 9649}
-  xRange: {x: -480, y: 480}
+  xRange: {x: -500, y: 500}
 --- !u!224 &9649
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1452,7 +1452,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &193129598
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1524,7 +1524,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   contentParent: {fileID: 628448245}
-  achievementButtonPrefab: {fileID: 9206677303487822615, guid: 0a424874ffee64514a4a981a5ec9b947, type: 3}
+  achievementButtonPrefab: {fileID: 5173527290786625225, guid: 732908477b3f14dbe867c86129dbe3b6, type: 3}
   unlockedColor: {r: 1, g: 1, b: 1, a: 1}
   lockedColor: {r: 1, g: 1, b: 1, a: 1}
   enableDebugLogs: 0
@@ -4923,8 +4923,13 @@ MonoBehaviour:
     unlockedAchIds: []
     achievementWormIds: []
     selectedMapIndex: 0
+    equippedHatId: 
+    equippedFaceId: 
+    equippedCostumeId: 
     sfxOption: 2
     bgmOption: 2
+  enableAutoSave: 1
+  autoSaveInterval: 1
 --- !u!1 &719033769
 GameObject:
   m_ObjectHideFlags: 0
@@ -7375,11 +7380,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wormImage: {fileID: 354540902}
-  moveSpeedRange: {x: 60, y: 120}
+  moveSpeedRange: {x: 60, y: 100}
   moveDurationRange: {x: 1, y: 5}
   idleDurationRange: {x: 1, y: 10}
-  xRange: {x: -440, y: 440}
-  yRange: {x: -830, y: -30}
+  xRange: {x: -500, y: 500}
+  yRange: {x: -850, y: 100}
+  detectionRange: 100
+  moveToAcornSpeed: 140
+  searchInterval: 4
+  searchRange: 500
   enableDebugLogs: 0
 --- !u!1 &956673279 stripped
 GameObject:
@@ -7446,7 +7455,6 @@ GameObject:
   - component: {fileID: 998188565}
   - component: {fileID: 998188564}
   - component: {fileID: 998188563}
-  - component: {fileID: 998188562}
   m_Layer: 5
   m_Name: TreeButton
   m_TagString: Untagged
@@ -7473,21 +7481,6 @@ RectTransform:
   m_AnchoredPosition: {x: 280, y: 210}
   m_SizeDelta: {x: 384, y: 384}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &998188562
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 998188560}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c283bad88a9d441bad164e8125cd56d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  buttonAction: 22
-  actionParameter: -1
-  actionParameterString: 
 --- !u!114 &998188563
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7532,9 +7525,21 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 8300000, guid: 43f50ebc66bc04d87b64eab84dde82ca, type: 3}
-        m_TargetAssemblyTypeName: UnityEngine.Object, UnityEngine
-        m_MethodName: 
+      - m_Target: {fileID: 2049221178}
+        m_TargetAssemblyTypeName: GGumtles.Managers.AudioManager, Assembly-CSharp
+        m_MethodName: PlaySFX
+        m_Mode: 2
+        m_Arguments:
+          m_ObjectArgument: {fileID: 8300000, guid: 43f50ebc66bc04d87b64eab84dde82ca, type: 3}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.AudioClip, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 1077909238}
+        m_TargetAssemblyTypeName: GGumtles.UI.TreeController, Assembly-CSharp
+        m_MethodName: ShakeTree
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11093,8 +11098,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: 0, y: -600}
+  m_SizeDelta: {x: 800, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1623730303
 GameObject:
@@ -14219,6 +14224,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 9b630469686ca4b3ab9a74da7cb20bc3, type: 3}
   - {fileID: 8300000, guid: 366f2338fee934f59a9a873cf32b42ab, type: 3}
   - {fileID: 8300000, guid: c863f782ce2854553b26063edf9f9dd1, type: 3}
+  - {fileID: 8300000, guid: 6e1e11154775540f58ceae2f718a0255, type: 3}
+  - {fileID: 8300000, guid: 38440dd31a1204df990054e69992d15f, type: 3}
   maxConcurrentSFX: 5
   audioSourcePrefab: {fileID: 4866645474312776899, guid: 8795a5115e29a4739b650223ee7477d1, type: 3}
   defaultSFXVolume: 1
@@ -14871,6 +14878,7 @@ MonoBehaviour:
   acornButtonImage: {fileID: 350307044}
   acornButtonText: {fileID: 887445759}
   acornFeedSpawner: {fileID: 9648}
+  acornToast: {fileID: 7449898020722165857, guid: 1b70336fd330741fe806c5108703531b, type: 3}
   cooldownDuration: 30
   enableDebugLogs: 0
 --- !u!1660057539 &9223372036854775807
